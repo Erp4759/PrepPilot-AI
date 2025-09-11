@@ -1,0 +1,60 @@
+# PrepPilot AI
+
+IELTS & TOEFL preparation app leveraging AI to generate tasks, evaluate answers, and deliver actionable feedback across Reading, Writing, Listening, and Speaking.
+
+## Tech Stack
+Flutter (Material 3), Riverpod, get_it (DI), Freezed + JSON serialization, Dio (network), just_audio / record / speech_to_text / flutter_tts (audio & speech), shared_preferences (local storage), dotenv for API keys.
+
+## Structure (early scaffold)
+```
+lib/
+	main.dart                # Entry -> bootstrap
+	src/
+		bootstrap/             # env + guarded run
+		app/                   # App root widget
+		core/
+			theme/               # Theming
+			router/              # App router (placeholder)
+			ai/                  # (future) AI service abstractions
+		features/
+			reading/             # Reading practice module
+			writing/             # (planned)
+			listening/           # (planned)
+			speaking/            # (planned)
+```
+
+## Environment Variables
+Create a `.env` (NOT committed) with values like:
+```
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=...
+```
+
+## Run
+```
+flutter pub get
+flutter run
+```
+
+## Next Steps
+- Implement unified AIService abstraction.
+- Add domain models for tasks & evaluations (Freezed).
+- Expand router with feature routes.
+- Integrate audio recording & TTS for Speaking.
+- Add persistence for progress tracking.
+
+---
+Early scaffold generated automatically; refine as features land.
+
+## Getting Started
+
+This project is a starting point for a Flutter application.
+
+A few resources to get you started if this is your first Flutter project:
+
+- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.
