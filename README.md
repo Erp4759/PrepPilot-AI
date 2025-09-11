@@ -1,6 +1,6 @@
 # PrepPilot AI
 
-IELTS & TOEFL preparation app leveraging AI to generate tasks, evaluate answers, and deliver actionable feedback across Reading, Writing, Listening, and Speaking.
+Mobile app for English exams preparation (IELTS & TOEFL). Leverages AI to generate practice tasks, evaluate answers, and provide feedback across Reading, Writing, Listening, and Speaking.
 
 ## Tech Stack
 Flutter (Material 3), Riverpod, get_it (DI), Freezed + JSON serialization, Dio (network), just_audio / record / speech_to_text / flutter_tts (audio & speech), shared_preferences (local storage), dotenv for API keys.
@@ -58,3 +58,4 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+<!-- Merged remote short description with detailed scaffold -->
