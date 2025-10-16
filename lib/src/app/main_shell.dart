@@ -74,15 +74,15 @@ class _PlaceholderTab extends StatelessWidget {
       ),
       child: Center(
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(28),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
             child: Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(.86),
-                border: Border.all(color: Colors.black.withOpacity(.10)),
-                borderRadius: BorderRadius.circular(20),
+                color: Colors.white.withOpacity(.76),
+                border: Border.all(color: Colors.black.withOpacity(.06)),
+                borderRadius: BorderRadius.circular(28),
               ),
               child: Text(
                 title,
@@ -118,21 +118,22 @@ class _GlassBottomBar extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(.86),
-                border: Border.all(color: Colors.black.withOpacity(.10)),
+                borderRadius: BorderRadius.circular(24),
+                color: Colors.white.withOpacity(.76),
+                border: Border.all(color: Colors.black.withOpacity(.06)),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x19000000),
-                    blurRadius: 14,
-                    offset: Offset(0, 5),
+                    color: Color(0x14000000),
+                    blurRadius: 20,
+                    offset: Offset(0, 6),
                   ),
                 ],
               ),
@@ -174,13 +175,13 @@ class _BarButton extends StatelessWidget {
     final color = selected ? const Color(0xFF2C8FFF) : const Color(0xFF5C6470);
     return Expanded(
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(18)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -188,14 +189,14 @@ class _BarButton extends StatelessWidget {
                 duration: const Duration(milliseconds: 180),
                 curve: Curves.easeOut,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
+                  horizontal: 12,
+                  vertical: 10,
                 ),
                 decoration: BoxDecoration(
                   color: selected
-                      ? const Color(0x182C8FFF)
+                      ? const Color(0x142C8FFF)
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -242,20 +243,24 @@ class _MenuBottomSheet extends StatelessWidget {
       builder: (context, controller) {
         return ClipRRect(
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
+            topLeft: Radius.circular(32),
+            topRight: Radius.circular(32),
           ),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(.86),
-                border: Border.all(color: Colors.black.withOpacity(.10)),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(32),
+                  topRight: Radius.circular(32),
+                ),
+                color: Colors.white.withOpacity(.78),
+                border: Border.all(color: Colors.black.withOpacity(.06)),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x28000000),
-                    blurRadius: 28,
-                    offset: Offset(0, -6),
+                    color: Color(0x1E000000),
+                    blurRadius: 32,
+                    offset: Offset(0, -8),
                   ),
                 ],
               ),
@@ -263,16 +268,16 @@ class _MenuBottomSheet extends StatelessWidget {
                 controller: controller,
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
                 children: [
-                    Center(
-                      child: Container(
-                        width: 44,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(.25),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
+                  Center(
+                    child: Container(
+                      width: 48,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(.18),
+                        borderRadius: BorderRadius.circular(999),
                       ),
                     ),
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     'Quick actions',
@@ -327,19 +332,19 @@ class _MenuTile extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(.90),
-          border: Border.all(color: Colors.black.withOpacity(.08)),
-          borderRadius: BorderRadius.circular(16),
+          color: Colors.white.withOpacity(.82),
+          border: Border.all(color: Colors.black.withOpacity(.06)),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
                 gradient: const LinearGradient(
                   colors: [Color(0xD282CEFF), Color(0xD2B78DFF)],
                   begin: Alignment.topLeft,

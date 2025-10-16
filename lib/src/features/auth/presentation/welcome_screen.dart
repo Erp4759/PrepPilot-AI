@@ -120,27 +120,27 @@ class _GlassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return RepaintBoundary(
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(36),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.black.withOpacity(.10)),
+            borderRadius: BorderRadius.circular(36),
+            border: Border.all(color: Colors.black.withOpacity(.08)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x19000000),
-                blurRadius: 28,
-                offset: Offset(0, 6),
+                color: Color(0x14000000),
+                blurRadius: 32,
+                offset: Offset(0, 8),
               ),
               BoxShadow(
-                color: Color(0x0F000000),
-                blurRadius: 8,
+                color: Color(0x0A000000),
+                blurRadius: 12,
                 offset: Offset(0, 2),
               ),
             ],
             gradient: const LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xDBFFFFFF), Color(0xB8FFFFFF)],
+              colors: [Color(0xC8FFFFFF), Color(0xA0FFFFFF)],
             ),
           ),
           child: BackdropFilter(
@@ -263,14 +263,15 @@ class _GlassCapsule extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Container(
-          padding: padding ?? const EdgeInsets.all(10),
+          padding: padding ?? const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.black.withOpacity(.10)),
-            color: Colors.white.withOpacity(.86),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.black.withOpacity(.06)),
+            color: Colors.white.withOpacity(.72),
           ),
           child: child,
         ),
@@ -288,7 +289,7 @@ class _LogoGradientBox extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(14),
         gradient: const LinearGradient(
           colors: [Color(0xD282CEFF), Color(0xD2B78DFF)],
           begin: Alignment.topLeft,
@@ -296,8 +297,8 @@ class _LogoGradientBox extends StatelessWidget {
         ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x4082CEFF),
-            blurRadius: 18,
+            color: Color(0x3082CEFF),
+            blurRadius: 20,
             offset: Offset(0, 8),
           ),
         ],
@@ -351,12 +352,12 @@ class _PrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         backgroundColor: const Color(0xFF2C8FFF),
         foregroundColor: Colors.white,
-        shadowColor: const Color(0x402C8FFF),
-        elevation: 8,
+        shadowColor: const Color(0x302C8FFF),
+        elevation: 6,
       ),
       onPressed: onTap,
       child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),

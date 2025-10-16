@@ -22,19 +22,20 @@ class GlassFormCard extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(32),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
               child: Container(
-                padding: const EdgeInsets.all(22),
+                padding: const EdgeInsets.all(28),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(.86),
-                  border: Border.all(color: Colors.black.withOpacity(.10)),
+                  borderRadius: BorderRadius.circular(32),
+                  color: Colors.white.withOpacity(.76),
+                  border: Border.all(color: Colors.black.withOpacity(.06)),
                   boxShadow: const [
                     BoxShadow(
-                      color: Color(0x19000000),
-                      blurRadius: 28,
-                      offset: Offset(0, 6),
+                      color: Color(0x14000000),
+                      blurRadius: 32,
+                      offset: Offset(0, 8),
                     ),
                   ],
                 ),
@@ -88,13 +89,13 @@ class GlassTextField extends StatelessWidget {
           keyboardType: keyboardType,
           decoration: InputDecoration(
             filled: true,
-            fillColor: Colors.white.withOpacity(.90),
+            fillColor: Colors.white.withOpacity(.85),
             border: _border(),
             enabledBorder: _border(),
             focusedBorder: _border(color: const Color(0xFF2C8FFF)),
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 14,
+              horizontal: 16,
+              vertical: 16,
             ),
           ),
         ),
@@ -103,8 +104,8 @@ class GlassTextField extends StatelessWidget {
   }
 
   OutlineInputBorder _border({Color? color}) => OutlineInputBorder(
-    borderRadius: BorderRadius.circular(14),
-    borderSide: BorderSide(color: color ?? Colors.black.withOpacity(.12)),
+    borderRadius: BorderRadius.circular(18),
+    borderSide: BorderSide(color: color ?? Colors.black.withOpacity(.08)),
   );
 }
 
@@ -123,14 +124,14 @@ class GlassPrimaryButton extends StatelessWidget {
       width: double.infinity,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(18),
           ),
           backgroundColor: const Color(0xFF2C8FFF),
           foregroundColor: Colors.white,
-          shadowColor: const Color(0x402C8FFF),
-          elevation: 8,
+          shadowColor: const Color(0x302C8FFF),
+          elevation: 6,
         ),
         onPressed: onPressed,
         child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
