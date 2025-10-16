@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../features/auth/presentation/login_screen.dart';
+import '../features/auth/presentation/register_screen.dart';
+import 'main_shell.dart';
 import '../core/theme/app_theme.dart';
 
 class PrepPilotApp extends StatelessWidget {
@@ -10,7 +13,35 @@ class PrepPilotApp extends StatelessWidget {
       title: 'PrepPilot AI',
       theme: AppTheme.light,
       debugShowCheckedModeBanner: false,
-      home: const Scaffold(body: Center(child: Text('PrepPilot AI'))),
+      home: const MainShell(),
+      routes: {
+        LoginScreen.routeName: (_) => const LoginScreen(),
+        RegisterScreen.routeName: (_) => const RegisterScreen(),
+        '/profile': (_) => const _ProfileScreen(),
+        '/settings': (_) => const _SettingsScreen(),
+      },
+    );
+  }
+}
+
+class _ProfileScreen extends StatelessWidget {
+  const _ProfileScreen();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Profile')),
+      body: const Center(child: Text('Profile (placeholder)')),
+    );
+  }
+}
+
+class _SettingsScreen extends StatelessWidget {
+  const _SettingsScreen();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: const Center(child: Text('Settings (placeholder)')),
     );
   }
 }

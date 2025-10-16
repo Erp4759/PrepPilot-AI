@@ -15,7 +15,7 @@ class _PlaceholderParser extends RouteInformationParser<Object> {
   Future<Object> parseRouteInformation(
     RouteInformation routeInformation,
   ) async {
-    return routeInformation.location ?? '/';
+    return routeInformation.location;
   }
 }
 
@@ -23,11 +23,9 @@ class _PlaceholderDelegate extends RouterDelegate<Object>
     with ChangeNotifier, PopNavigatorRouterDelegateMixin<Object> {
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-  String _location = '/';
-
   @override
-  Future<void> setNewRoutePath(configuration) async {
-    _location = configuration.toString();
+  Future<void> setNewRoutePath(Object configuration) async {
+    // no-op for placeholder router
   }
 
   @override
