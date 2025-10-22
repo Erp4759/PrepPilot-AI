@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/register_screen.dart';
+import '../features/results/results_screen.dart';
+import '../features/results/feedback_screen.dart';
+import '../features/results/past_mistakes_screen.dart';
+import '../features/results/vocabulary_mistakes_screen.dart';
 import 'main_shell.dart';
 import '../core/theme/app_theme.dart';
 
@@ -19,6 +23,10 @@ class PrepPilotApp extends StatelessWidget {
         RegisterScreen.routeName: (_) => const RegisterScreen(),
         '/profile': (_) => const _ProfileScreen(),
         '/settings': (_) => const _SettingsScreen(),
+        '/results': (_) => const ResultsScreen(),
+        '/feedback': (_) => const FeedbackScreen(),
+        '/past-mistakes': (_) => const PastMistakesScreen(),
+        '/vocabulary': (_) => const VocabularyMistakesScreen(),
       },
     );
   }
