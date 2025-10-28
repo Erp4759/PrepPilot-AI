@@ -5,6 +5,9 @@ import '../features/results/results_screen.dart';
 import '../features/results/feedback_screen.dart';
 import '../features/results/past_mistakes_screen.dart';
 import '../features/results/vocabulary_mistakes_screen.dart';
+import '../features/profile_setting/profile.dart';
+import '../features/profile_setting/edit_profile.dart';
+import '../features/setting.dart';
 import 'main_shell.dart';
 import '../core/theme/app_theme.dart';
 
@@ -21,8 +24,9 @@ class PrepPilotApp extends StatelessWidget {
       routes: {
         LoginScreen.routeName: (_) => const LoginScreen(),
         RegisterScreen.routeName: (_) => const RegisterScreen(),
-        '/profile': (_) => const _ProfileScreen(),
-        '/settings': (_) => const _SettingsScreen(),
+        '/profile': (_) => const ProfileScreen(),
+        '/profile/edit': (_) => const EditProfileScreen(),
+        '/settings': (_) => const SettingScreen(),
         '/results': (_) => const ResultsScreen(),
         '/feedback': (_) => const FeedbackScreen(),
         '/past-mistakes': (_) => const PastMistakesScreen(),
@@ -32,24 +36,24 @@ class PrepPilotApp extends StatelessWidget {
   }
 }
 
-class _ProfileScreen extends StatelessWidget {
-  const _ProfileScreen();
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: const Center(child: Text('Profile (placeholder)')),
-    );
-  }
-}
+// class _ProfileScreen extends StatelessWidget {
+//   const _ProfileScreen();
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(title: const Text('Profile')),
+//       body: const Center(child: Text('Profile (placeholder)')),
+//     );
+//   }
+// }/
 
-class _SettingsScreen extends StatelessWidget {
-  const _SettingsScreen();
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: const Center(child: Text('Settings (placeholder)')),
-    );
-  }
-}
+// class _SettingsScreen extends StatelessWidget {
+//   const _SettingsScreen();
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(title: const Text('Settings')),
+//       body: const Center(child: Text('Settings (placeholder)')),
+//     );
+//   }
+// }
