@@ -32,8 +32,19 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Small back button (top-left)
-                  _SmallBackButton(),
+                  Row(
+                    children: [
+                      _SmallBackButton(),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Profile Info',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
 
                   // Spacer to push center content roughly to middle
                   const SizedBox(height: 36),
