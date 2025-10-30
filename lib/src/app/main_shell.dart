@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../features/auth/presentation/welcome_screen.dart';
 import '../features/results/results_screen.dart';
+import '../features/skills/skills_main_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -37,7 +38,7 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final tabs = <Widget>[
       const WelcomeScreen(),
-      const _PlaceholderTab(title: 'Skill'),
+      const SkillsMainScreen(),
       const ResultsScreen(),
       const _PlaceholderTab(title: 'Menu'),
     ];

@@ -8,6 +8,7 @@ import '../features/results/vocabulary_mistakes_screen.dart';
 import '../features/profile_setting/profile.dart';
 import '../features/profile_setting/edit_profile.dart';
 import '../features/setting.dart';
+import '../features/skills/index.dart';
 import 'main_shell.dart';
 import '../core/theme/app_theme.dart';
 
@@ -24,6 +25,11 @@ class PrepPilotApp extends StatelessWidget {
       routes: {
         LoginScreen.routeName: (_) => const LoginScreen(),
         RegisterScreen.routeName: (_) => const RegisterScreen(),
+        '/skills': (_) => const SkillsMainScreen(),
+        '/skills/listening': (_) => const ListeningMainScreen(),
+        '/skills/listening/listeningmodule_1': (_) => const ListeningModule_1(),
+        '/skills/writing': (_) => const WritingMainScreen(),
+        '/skills/writing/writingmodule_1': (_) => const WritingModule_1(),
         '/profile': (_) => const ProfileScreen(),
         '/profile/edit': (_) => const EditProfileScreen(),
         '/settings': (_) => const SettingScreen(),
