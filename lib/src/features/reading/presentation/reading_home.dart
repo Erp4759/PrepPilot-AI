@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'reading_scanning.dart';
 import 'reading_skimming.dart';
+import 'reading_inference.dart';
 
 class ReadingHomeScreen extends StatelessWidget {
   const ReadingHomeScreen({super.key});
@@ -149,8 +150,12 @@ class ReadingHomeScreen extends StatelessWidget {
                             Color(0xFF14B8A6),
                           ],
                           onTap: () {
-                            // TODO: Navigate to Inference screen
-                            _showComingSoon(context, 'Inference');
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const ReadingInferenceScreen(),
+                              ),
+                            );
                           },
                         ),
 
