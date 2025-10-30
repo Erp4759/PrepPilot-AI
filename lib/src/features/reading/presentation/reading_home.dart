@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'reading_scanning.dart';
+import 'reading_skimming.dart';
 
 class ReadingHomeScreen extends StatelessWidget {
   const ReadingHomeScreen({super.key});
@@ -105,8 +106,12 @@ class ReadingHomeScreen extends StatelessWidget {
                             Color(0xFF8B5CF6),
                           ],
                           onTap: () {
-                            // TODO: Navigate to Skimming screen
-                            _showComingSoon(context, 'Skimming');
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const ReadingSkimmingScreen(),
+                              ),
+                            );
                           },
                         ),
 
