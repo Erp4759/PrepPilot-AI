@@ -1,6 +1,12 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
+enum TestState { initial, loading, test, results }
+
+enum PassageLength { short, medium, long }
+
+enum Difficulty { a1, a2, b1, b2, c1, c2, adaptive }
+
 class ReadingScanningScreen extends StatefulWidget {
   const ReadingScanningScreen({super.key});
 
@@ -11,52 +17,170 @@ class ReadingScanningScreen extends StatefulWidget {
 }
 
 class _ReadingScanningScreenState extends State<ReadingScanningScreen> {
-  final TextEditingController _questionController = TextEditingController();
-  final List<String> _questions = [];
-  bool _isExpanded = false;
+  TestState _testState = TestState.initial;
+  PassageLength _selectedLength = PassageLength.medium;
+  Difficulty _selectedDifficulty = Difficulty.b1;
 
-  // Sample reading passage
-  final String _passage = '''
-The Industrial Revolution, which took place from the 18th to 19th centuries, was a period during which predominantly agrarian, rural societies in Europe and America became industrial and urban. Prior to the Industrial Revolution, which began in Britain in the late 1700s, manufacturing was often done in people's homes, using hand tools or basic machines. Industrialization marked a shift to powered, special-purpose machinery, factories and mass production.
-
-The iron and textile industries, along with the development of the steam engine, played central roles in the Industrial Revolution, which also saw improved systems of transportation, communication and banking. While industrialization brought about an increased volume and variety of manufactured goods and an improved standard of living for some, it also resulted in often grim employment and living conditions for the poor and working classes.
-
-Key inventions of the Industrial Revolution included the steam engine, the spinning jenny, and the power loom. These innovations fundamentally transformed manufacturing processes and laid the groundwork for modern industrial society. The revolution also brought significant social changes, including urbanization, the growth of the middle class, and new forms of labor organization.
-
-The environmental impact of the Industrial Revolution was profound. The burning of coal and other fossil fuels led to air pollution in industrial centers, while the growth of factories and cities created new forms of water and soil contamination. These environmental challenges would become increasingly significant in the centuries that followed.
-''';
+  // Test data (will be generated later with LLM)
+  String? _generatedPassage;
+  List<Map<String, String>>? _generatedQuestions;
+  final Map<int, TextEditingController> _answerControllers = {};
 
   @override
-  void dispose() {
-    _questionController.dispose();
-    super.dispose();
-  }
-
-  void _addQuestion() {
-    if (_questionController.text.trim().isNotEmpty) {
-      setState(() {
-        _questions.add(_questionController.text.trim());
-        _questionController.clear();
-      });
-    }
-  }
-
-  void _removeQuestion(int index) {
-    setState(() {
-      _questions.removeAt(index);
+  void initState() {
+    super.initState();
+    // Show settings dialog on first load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showSettingsDialog();
     });
   }
 
+  @override
+  void dispose() {
+    for (var controller in _answerControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _showSettingsDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _SettingsDialog(
+        selectedLength: _selectedLength,
+        selectedDifficulty: _selectedDifficulty,
+        onStart: (length, difficulty) {
+          setState(() {
+            _selectedLength = length;
+            _selectedDifficulty = difficulty;
+          });
+          Navigator.of(context).pop();
+          _startTest();
+        },
+        onCancel: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).pop(); // Go back to reading home
+        },
+      ),
+    );
+  }
+
+  Future<void> _startTest() async {
+    setState(() {
+      _testState = TestState.loading;
+    });
+
+    // Simulate loading (replace with LLM call later)
+    await Future.delayed(const Duration(seconds: 2));
+
+    // Generate mock test data (replace with LLM later)
+    _generateMockTest();
+
+    setState(() {
+      _testState = TestState.test;
+    });
+  }
+
+  void _generateMockTest() {
+    // Mock passage based on difficulty
+    _generatedPassage = _getMockPassage();
+    _generatedQuestions = _getMockQuestions();
+
+    // Initialize answer controllers
+    _answerControllers.clear();
+    for (int i = 0; i < _generatedQuestions!.length; i++) {
+      _answerControllers[i] = TextEditingController();
+    }
+  }
+
+  String _getMockPassage() {
+    // Different passages for different difficulties/lengths
+    if (_selectedLength == PassageLength.short) {
+      return '''Climate change is one of the most pressing issues of our time. Rising global temperatures are causing ice caps to melt, sea levels to rise, and weather patterns to become more extreme. Scientists agree that human activities, particularly the burning of fossil fuels, are the primary cause of recent climate change.''';
+    } else if (_selectedLength == PassageLength.medium) {
+      return '''The invention of the printing press by Johannes Gutenberg in 1440 revolutionized the spread of information in Europe. Before this innovation, books were copied by hand, making them expensive and rare. The printing press allowed for mass production of books, which led to increased literacy rates and the rapid dissemination of new ideas during the Renaissance.
+
+The impact of the printing press extended far beyond just making books more available. It played a crucial role in the Protestant Reformation, as Martin Luther's 95 Theses could be quickly reproduced and distributed throughout Europe. The technology also facilitated the Scientific Revolution by allowing scientists to share their discoveries more easily.''';
+    } else {
+      return '''The human brain is perhaps the most complex organ in the known universe, containing approximately 86 billion neurons. Each neuron can form thousands of connections with other neurons, creating an intricate network that enables thought, memory, emotion, and consciousness. Neuroscientists have made significant progress in understanding brain function, but many mysteries remain.
+
+Recent advances in brain imaging technology, such as functional MRI and PET scans, have allowed researchers to observe the brain in action. These tools have revealed that different regions of the brain specialize in different functions. For example, the hippocampus is crucial for forming new memories, while the amygdala processes emotions, particularly fear and anxiety.
+
+The concept of neuroplasticity has transformed our understanding of the brain. Previously, scientists believed that the adult brain was relatively fixed and unchangeable. However, research has shown that the brain can reorganize itself by forming new neural connections throughout life. This discovery has important implications for recovery from brain injuries and for learning new skills at any age.''';
+    }
+  }
+
+  List<Map<String, String>> _getMockQuestions() {
+    // Mock questions (will be generated by LLM later)
+    if (_selectedDifficulty == Difficulty.a1 ||
+        _selectedDifficulty == Difficulty.a2) {
+      return [
+        {'question': 'What year was the printing press invented?'},
+        {'question': 'Who invented the printing press?'},
+        {'question': 'What happened to book prices after the invention?'},
+      ];
+    } else if (_selectedDifficulty == Difficulty.b1 ||
+        _selectedDifficulty == Difficulty.b2) {
+      return [
+        {
+          'question':
+              'According to the passage, what was the main limitation of books before the printing press?',
+        },
+        {
+          'question':
+              'How did the printing press contribute to the Protestant Reformation?',
+        },
+        {
+          'question':
+              'What role did the printing press play in the Scientific Revolution?',
+        },
+        {'question': 'What effect did the printing press have on literacy?'},
+      ];
+    } else {
+      return [
+        {
+          'question':
+              'Explain how the printing press transformed the dissemination of knowledge in Renaissance Europe.',
+        },
+        {
+          'question':
+              'Analyze the relationship between the printing press and religious reform movements.',
+        },
+        {
+          'question':
+              'What broader societal changes resulted from the mass production of printed materials?',
+        },
+        {
+          'question':
+              'How did the printing press facilitate scientific progress beyond simply publishing findings?',
+        },
+        {
+          'question':
+              'Compare the impact of the printing press to modern information technologies.',
+        },
+      ];
+    }
+  }
+
   void _submitAnswers() {
-    // TODO: Implement answer validation logic
+    // TODO: Implement answer validation with LLM
+    setState(() {
+      _testState = TestState.results;
+    });
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Analyzing your scanning skills...'),
-        backgroundColor: const Color(0xFF2C8FFF),
+        content: const Text('Analyzing your answers...'),
+        backgroundColor: const Color(0xFF10B981),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
+  }
+
+  void _restartTest() {
+    _showSettingsDialog();
   }
 
   @override
@@ -65,295 +189,344 @@ The environmental impact of the Industrial Revolution was profound. The burning 
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background
           const _GradientBackground(),
+          SafeArea(child: _buildContent()),
+        ],
+      ),
+    );
+  }
 
-          // Main content
-          SafeArea(
+  Widget _buildContent() {
+    switch (_testState) {
+      case TestState.initial:
+        return const SizedBox(); // Settings dialog shows automatically
+      case TestState.loading:
+        return _buildLoadingScreen();
+      case TestState.test:
+        return _buildTestScreen();
+      case TestState.results:
+        return _buildResultsScreen();
+    }
+  }
+
+  Widget _buildLoadingScreen() {
+    return Center(
+      child: _GlassCard(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF2C8FFF), Color(0xFF06B6D4)],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 3,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Generating your test...',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'AI is creating a passage and questions',
+              style: TextStyle(
+                fontSize: 14,
+                color: const Color(0xFF5C6470).withOpacity(0.8),
+              ),
+            ),
+            const SizedBox(height: 20),
+            _LoadingProgressIndicator(
+              label: 'Analyzing difficulty level...',
+              value: 0.33,
+            ),
+            const SizedBox(height: 12),
+            _LoadingProgressIndicator(
+              label: 'Generating passage...',
+              value: 0.66,
+            ),
+            const SizedBox(height: 12),
+            _LoadingProgressIndicator(
+              label: 'Creating questions...',
+              value: 1.0,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTestScreen() {
+    return Column(
+      children: [
+        _buildHeader(),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Header
-                _buildHeader(),
+                const SizedBox(height: 16),
+                _buildTestHeader(),
+                const SizedBox(height: 16),
+                _buildPassageCard(),
+                const SizedBox(height: 20),
+                _buildQuestionsCard(),
+                const SizedBox(height: 20),
+                _buildSubmitButton(),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-                // Scrollable content
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const SizedBox(height: 16),
-
-                        // Title section
-                        _GlassCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 6,
-                                    height: 6,
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      gradient: RadialGradient(
-                                        colors: [
-                                          Color(0xFFFFFFFF),
-                                          Color(0xFF82CEFF),
-                                        ],
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Color(0xB382CEFF),
-                                          blurRadius: 12,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'AI 1',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: const Color(0xFF5C6470),
-                                          letterSpacing: 0.6,
-                                        ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Scanning',
-                                style: Theme.of(context).textTheme.headlineLarge
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: -0.5,
-                                    ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Read the passage carefully and find specific details',
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(color: const Color(0xFF5C6470)),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Reading passage
-                        _GlassCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(
-                                        0xFF2C8FFF,
-                                      ).withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Text(
-                                      'Reading Passage',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF2C8FFF),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              _ScrollableTextArea(text: _passage),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Questions section
-                        _GlassCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Text(
-                                        'Questions',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF2C8FFF),
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          '${_questions.length}',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  _GlassIconButton(
-                                    icon: _isExpanded
-                                        ? Icons.remove
-                                        : Icons.add,
-                                    onTap: () {
-                                      setState(() {
-                                        _isExpanded = !_isExpanded;
-                                      });
-                                    },
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Text Input Only',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(color: const Color(0xFF5C6470)),
-                              ),
-
-                              // Question input field
-                              if (_isExpanded) ...[
-                                const SizedBox(height: 16),
-                                _GlassTextField(
-                                  controller: _questionController,
-                                  hintText: 'Enter your question...',
-                                  onSubmitted: (_) => _addQuestion(),
-                                ),
-                                const SizedBox(height: 12),
-                                _PrimaryButton(
-                                  label: 'Add Question',
-                                  onTap: _addQuestion,
-                                  icon: Icons.add_circle_outline,
-                                ),
-                              ],
-
-                              // List of questions
-                              if (_questions.isNotEmpty) ...[
-                                const SizedBox(height: 16),
-                                const Divider(height: 1),
-                                const SizedBox(height: 16),
-                                ListView.separated(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: _questions.length,
-                                  separatorBuilder: (_, __) =>
-                                      const SizedBox(height: 12),
-                                  itemBuilder: (context, index) {
-                                    return _QuestionItem(
-                                      question: _questions[index],
-                                      index: index,
-                                      onRemove: () => _removeQuestion(index),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Submit button
-                        if (_questions.isNotEmpty)
-                          _SubmitButton(
-                            onTap: _submitAnswers,
-                            questionsCount: _questions.length,
-                          ),
-
-                        const SizedBox(height: 20),
-
-                        // Tips section
-                        _GlassCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF82CEFF),
-                                          Color(0xFFB78DFF),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Icon(
-                                      Icons.lightbulb_outline,
-                                      color: Colors.white,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  const Text(
-                                    'Scanning Tips',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              _TipItem(
-                                '📍 Look for specific information like dates, names, numbers',
-                              ),
-                              const SizedBox(height: 8),
-                              _TipItem(
-                                '⚡ Move your eyes quickly across the text',
-                              ),
-                              const SizedBox(height: 8),
-                              _TipItem(
-                                '🎯 Focus on keywords related to your question',
-                              ),
-                              const SizedBox(height: 8),
-                              _TipItem(
-                                '✨ Don\'t read every word - scan for details',
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+  Widget _buildTestHeader() {
+    return _GlassCard(
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2C8FFF), Color(0xFF06B6D4)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.search, color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Scanning Test',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_getDifficultyLabel(_selectedDifficulty)} • ${_getLengthLabel(_selectedLength)}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF5C6470),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPassageCard() {
+    return _GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2C8FFF).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Reading Passage',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF2C8FFF),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _ScrollableTextArea(text: _generatedPassage!),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuestionsCard() {
+    return _GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Questions',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2C8FFF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${_generatedQuestions!.length}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Answer all questions based on the passage above',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: const Color(0xFF5C6470)),
+          ),
+          const SizedBox(height: 20),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _generatedQuestions!.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 20),
+            itemBuilder: (context, index) {
+              return _QuestionAnswerItem(
+                questionNumber: index + 1,
+                question: _generatedQuestions![index]['question']!,
+                controller: _answerControllers[index]!,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return _GlassCard(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _submitAnswers,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF10B981), Color(0xFF059669)],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF10B981).withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.send_rounded, color: Colors.white, size: 24),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Submit Answers',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      '${_generatedQuestions!.length} question${_generatedQuestions!.length > 1 ? 's' : ''} ready',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_forward,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResultsScreen() {
+    return Center(
+      child: _GlassCard(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF10B981), Color(0xFF059669)],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.check_circle_outline,
+                color: Colors.white,
+                size: 40,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Test Submitted!',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Your answers are being analyzed...',
+              style: TextStyle(fontSize: 14, color: Color(0xFF5C6470)),
+            ),
+            const SizedBox(height: 24),
+            _PrimaryButton(
+              label: 'Take Another Test',
+              onTap: _restartTest,
+              icon: Icons.refresh,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -366,12 +539,42 @@ The environmental impact of the Industrial Revolution was profound. The burning 
           _SmallBackButton(onTap: () => Navigator.of(context).pop()),
           const SizedBox(width: 12),
           const Text(
-            'Back',
+            'Scanning Test',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ],
       ),
     );
+  }
+
+  String _getDifficultyLabel(Difficulty difficulty) {
+    switch (difficulty) {
+      case Difficulty.a1:
+        return 'A1 Beginner';
+      case Difficulty.a2:
+        return 'A2 Elementary';
+      case Difficulty.b1:
+        return 'B1 Intermediate';
+      case Difficulty.b2:
+        return 'B2 Upper-Intermediate';
+      case Difficulty.c1:
+        return 'C1 Advanced';
+      case Difficulty.c2:
+        return 'C2 Proficiency';
+      case Difficulty.adaptive:
+        return 'Adaptive';
+    }
+  }
+
+  String _getLengthLabel(PassageLength length) {
+    switch (length) {
+      case PassageLength.short:
+        return 'Short';
+      case PassageLength.medium:
+        return 'Medium';
+      case PassageLength.long:
+        return 'Long';
+    }
   }
 }
 
@@ -941,6 +1144,437 @@ class _TipItem extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SettingsDialog extends StatefulWidget {
+  const _SettingsDialog({
+    required this.selectedLength,
+    required this.selectedDifficulty,
+    required this.onStart,
+    required this.onCancel,
+  });
+
+  final PassageLength selectedLength;
+  final Difficulty selectedDifficulty;
+  final Function(PassageLength, Difficulty) onStart;
+  final VoidCallback onCancel;
+
+  @override
+  State<_SettingsDialog> createState() => _SettingsDialogState();
+}
+
+class _SettingsDialogState extends State<_SettingsDialog> {
+  late PassageLength _length;
+  late Difficulty _difficulty;
+
+  @override
+  void initState() {
+    super.initState();
+    _length = widget.selectedLength;
+    _difficulty = widget.selectedDifficulty;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 500),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 1.5,
+              ),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withOpacity(0.8),
+                  Colors.white.withOpacity(0.5),
+                ],
+              ),
+            ),
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF2C8FFF), Color(0xFF06B6D4)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Icon(
+                        Icons.settings_outlined,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Start Test?',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Configure your scanning test',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF5C6470),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+                const Text(
+                  'Passage Length',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _SettingChip(
+                      label: 'Short',
+                      isSelected: _length == PassageLength.short,
+                      onTap: () =>
+                          setState(() => _length = PassageLength.short),
+                    ),
+                    _SettingChip(
+                      label: 'Medium',
+                      isSelected: _length == PassageLength.medium,
+                      onTap: () =>
+                          setState(() => _length = PassageLength.medium),
+                    ),
+                    _SettingChip(
+                      label: 'Long',
+                      isSelected: _length == PassageLength.long,
+                      onTap: () => setState(() => _length = PassageLength.long),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Difficulty Level',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _SettingChip(
+                      label: 'A1',
+                      isSelected: _difficulty == Difficulty.a1,
+                      onTap: () => setState(() => _difficulty = Difficulty.a1),
+                    ),
+                    _SettingChip(
+                      label: 'A2',
+                      isSelected: _difficulty == Difficulty.a2,
+                      onTap: () => setState(() => _difficulty = Difficulty.a2),
+                    ),
+                    _SettingChip(
+                      label: 'B1',
+                      isSelected: _difficulty == Difficulty.b1,
+                      onTap: () => setState(() => _difficulty = Difficulty.b1),
+                    ),
+                    _SettingChip(
+                      label: 'B2',
+                      isSelected: _difficulty == Difficulty.b2,
+                      onTap: () => setState(() => _difficulty = Difficulty.b2),
+                    ),
+                    _SettingChip(
+                      label: 'C1',
+                      isSelected: _difficulty == Difficulty.c1,
+                      onTap: () => setState(() => _difficulty = Difficulty.c1),
+                    ),
+                    _SettingChip(
+                      label: 'C2',
+                      isSelected: _difficulty == Difficulty.c2,
+                      onTap: () => setState(() => _difficulty = Difficulty.c2),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _SettingChip(
+                  label: 'Adaptive (Based on your results)',
+                  icon: Icons.auto_awesome,
+                  isSelected: _difficulty == Difficulty.adaptive,
+                  onTap: () =>
+                      setState(() => _difficulty = Difficulty.adaptive),
+                  fullWidth: true,
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SecondaryButton(
+                        label: 'Cancel',
+                        onTap: widget.onCancel,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: _PrimaryButton(
+                        label: 'Start Test',
+                        onTap: () => widget.onStart(_length, _difficulty),
+                        icon: Icons.play_arrow,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingChip extends StatelessWidget {
+  const _SettingChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    this.icon,
+    this.fullWidth = false,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final IconData? icon;
+  final bool fullWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: fullWidth ? double.infinity : null,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: isSelected
+                ? const LinearGradient(
+                    colors: [Color(0xFF2C8FFF), Color(0xFF06B6D4)],
+                  )
+                : null,
+            color: isSelected ? null : Colors.white.withOpacity(0.5),
+            border: Border.all(
+              color: isSelected
+                  ? Colors.transparent
+                  : Colors.black.withOpacity(0.1),
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 18,
+                  color: isSelected ? Colors.white : const Color(0xFF2C8FFF),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? Colors.white : const Color(0xFF1E293B),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingProgressIndicator extends StatelessWidget {
+  const _LoadingProgressIndicator({required this.label, required this.value});
+
+  final String label;
+  final double value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            color: Color(0xFF5C6470),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: value,
+            backgroundColor: const Color(0xFF2C8FFF).withOpacity(0.15),
+            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2C8FFF)),
+            minHeight: 6,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuestionAnswerItem extends StatelessWidget {
+  const _QuestionAnswerItem({
+    required this.questionNumber,
+    required this.question,
+    required this.controller,
+  });
+
+  final int questionNumber;
+  final String question;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2C8FFF).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$questionNumber',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF2C8FFF),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                question,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFF2C8FFF).withOpacity(0.2),
+                  width: 1.5,
+                ),
+              ),
+              child: TextField(
+                controller: controller,
+                maxLines: 3,
+                style: const TextStyle(fontSize: 15, color: Color(0xFF1E293B)),
+                decoration: InputDecoration(
+                  hintText: 'Type your answer here...',
+                  hintStyle: TextStyle(
+                    color: const Color(0xFF5C6470).withOpacity(0.6),
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.all(16),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SecondaryButton extends StatelessWidget {
+  const _SecondaryButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: Colors.white.withOpacity(0.6),
+            border: Border.all(
+              color: const Color(0xFF2C8FFF).withOpacity(0.3),
+              width: 1.5,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF2C8FFF),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
