@@ -1,11 +1,12 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../reading/presentation/reading_home.dart';
 
 class SkillsMainScreen extends StatelessWidget {
   const SkillsMainScreen({super.key});
 
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -13,7 +14,7 @@ class SkillsMainScreen extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [Color(0xFFF8FAFC), Color(0xFFF2F5F8)],
-          )
+          ),
         ),
         child: Center(
           child: Column(
@@ -21,40 +22,67 @@ class SkillsMainScreen extends StatelessWidget {
             children: <Widget>[
               _SkillsButton(
                 label: 'Reading',
-                ontap: () {},
+                ontap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ReadingHomeScreen(),
+                    ),
+                  );
+                },
                 color1: const Color.fromARGB(255, 241, 93, 82).withOpacity(0.4),
-                color2: const Color.fromARGB(255, 246, 172, 61).withOpacity(0.4),
+                color2: const Color.fromARGB(
+                  255,
+                  246,
+                  172,
+                  61,
+                ).withOpacity(0.4),
                 icon: Icons.book,
               ),
               const SizedBox(height: 40),
               _SkillsButton(
                 label: 'Speaking',
                 ontap: () {},
-                color1: const Color.fromARGB(255, 229, 105, 251).withOpacity(0.4),
-                color2: const Color.fromARGB(255, 109, 55, 202).withOpacity(0.4),
+                color1: const Color.fromARGB(
+                  255,
+                  229,
+                  105,
+                  251,
+                ).withOpacity(0.4),
+                color2: const Color.fromARGB(
+                  255,
+                  109,
+                  55,
+                  202,
+                ).withOpacity(0.4),
                 icon: Icons.record_voice_over,
               ),
               const SizedBox(height: 40),
               _SkillsButton(
                 label: 'Listening',
-                ontap: () => Navigator.of(context).pushNamed('/skills/listening'),
+                ontap: () =>
+                    Navigator.of(context).pushNamed('/skills/listening'),
                 color1: const Color.fromARGB(255, 63, 225, 68).withOpacity(0.4),
                 color2: const Color.fromARGB(255, 60, 91, 76).withOpacity(0.4),
                 icon: Icons.hearing,
-                ),
+              ),
               const SizedBox(height: 40),
               _SkillsButton(
                 label: 'Writing',
                 ontap: () => Navigator.of(context).pushNamed('/skills/writing'),
-                color1: const Color.fromARGB(255, 99, 181, 248).withOpacity(0.4),
+                color1: const Color.fromARGB(
+                  255,
+                  99,
+                  181,
+                  248,
+                ).withOpacity(0.4),
                 color2: const Color.fromARGB(255, 1, 99, 89).withOpacity(0.4),
                 icon: Icons.edit,
-                ),
-              const SizedBox(height:40),
-            ]
-          )
-        )
-      )
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -75,7 +103,7 @@ class _SkillsButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return InkWell(
       onTap: ontap,
       borderRadius: BorderRadius.circular(24),
@@ -95,7 +123,7 @@ class _SkillsButton extends StatelessWidget {
               color: Color(0x4082CEFF),
               blurRadius: 18,
               offset: Offset(0, 8),
-            )
+            ),
           ],
         ),
         alignment: Alignment.center,
@@ -113,7 +141,7 @@ class _SkillsButton extends StatelessWidget {
                 color: Colors.white.withOpacity(0.9),
               ),
             ),
-          ]
+          ],
         ),
       ),
     );
