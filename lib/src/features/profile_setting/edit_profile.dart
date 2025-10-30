@@ -155,26 +155,26 @@ class EditProfileScreen extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 28),
+                  // const SizedBox(height: 28),
 
-                  // Level Setting 제목
-                  const Text(
-                    'Level Setting',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  // // Level Setting 제목
+                  // const Text(
+                  //   'Level Setting',
+                  //   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  // ),
 
-                  const SizedBox(height: 12),
+                  // const SizedBox(height: 12),
 
-                  // 네 가지 항목
-                  const LevelSelector(title: 'Reading'),
-                  const SizedBox(height: 12),
-                  const LevelSelector(title: 'Speaking'),
-                  const SizedBox(height: 12),
-                  const LevelSelector(title: 'Listening'),
-                  const SizedBox(height: 12),
-                  const LevelSelector(title: 'Writing'),
+                  // // 네 가지 항목
+                  // const LevelSelector(title: 'Reading'),
+                  // const SizedBox(height: 12),
+                  // const LevelSelector(title: 'Speaking'),
+                  // const SizedBox(height: 12),
+                  // const LevelSelector(title: 'Listening'),
+                  // const SizedBox(height: 12),
+                  // const LevelSelector(title: 'Writing'),
 
-                  const SizedBox(height: 32),
+                  // const SizedBox(height: 32),
                 ],
               ),
             ),

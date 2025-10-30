@@ -112,30 +112,20 @@ class _SettingScreenState extends State<SettingScreen> {
                       spacing: 12,
                       runSpacing: 12,
                       children: [
+                        Text("Light Mode"),
+                        SizedBox(width: 10),
                         _ColorOption(
                           color: const Color(0xFF2C8FFF),
                           isSelected: _themeColor == const Color(0xFF2C8FFF),
                           onTap: () => _updateThemeColor(const Color(0xFF2C8FFF)),
                         ),
+                        SizedBox(width : 20),
+                        Text("Dark Mode"),
+                        SizedBox(width: 10),
                         _ColorOption(
-                          color: Colors.green,
-                          isSelected: _themeColor == Colors.green,
-                          onTap: () => _updateThemeColor(Colors.green),
-                        ),
-                        _ColorOption(
-                          color: Colors.purple,
-                          isSelected: _themeColor == Colors.purple,
-                          onTap: () => _updateThemeColor(Colors.purple),
-                        ),
-                        _ColorOption(
-                          color: Colors.orange,
-                          isSelected: _themeColor == Colors.orange,
-                          onTap: () => _updateThemeColor(Colors.orange),
-                        ),
-                        _ColorOption(
-                          color: Colors.red,
-                          isSelected: _themeColor == Colors.red,
-                          onTap: () => _updateThemeColor(Colors.red),
+                          color: Colors.black,
+                          isSelected: _themeColor == Colors.black,
+                          onTap: () => _updateThemeColor(Colors.black),
                         ),
                       ],
                     ),
