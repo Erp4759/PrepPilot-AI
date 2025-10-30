@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'reading_scanning.dart';
 import 'reading_skimming.dart';
 import 'reading_inference.dart';
+import 'reading_keywords.dart';
 
 class ReadingHomeScreen extends StatelessWidget {
   const ReadingHomeScreen({super.key});
@@ -172,8 +173,12 @@ class ReadingHomeScreen extends StatelessWidget {
                             Color(0xFFEF4444),
                           ],
                           onTap: () {
-                            // TODO: Navigate to Keywords screen
-                            _showComingSoon(context, 'Identifying Keywords');
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const ReadingKeywordsScreen(),
+                              ),
+                            );
                           },
                         ),
 
