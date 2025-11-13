@@ -2,14 +2,14 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../data/writing_essay.dart';
 
-class WritingModule_1 extends StatefulWidget{
-  const WritingModule_1({super.key});
+class WritingLinkingDevicesScreen extends StatefulWidget{
+  const WritingLinkingDevicesScreen({super.key});
 
   @override
-  State<WritingModule_1> createState() => _WritingModule_1State();
+  State<WritingLinkingDevicesScreen> createState() => _WritingLinkingDevicesScreenState();
 }
 
-class _WritingModule_1State extends State<WritingModule_1>{
+class _WritingLinkingDevicesScreenState extends State<WritingLinkingDevicesScreen>{
   final _essayController = TextEditingController();
   String? _userEssay;
 

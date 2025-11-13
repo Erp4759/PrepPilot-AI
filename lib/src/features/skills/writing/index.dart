@@ -1,4 +1,4 @@
-export 'writing_main_screen.dart';
-export 'writing_module1.dart';
-export 'writing_module2.dart';
-export 'writing_module3.dart';
+export 'writing_home_screen.dart';
+export 'writing_essay_structures.dart';
+export 'writing_paraphrasing.dart';
+export 'writing_linking_devices.dart';
