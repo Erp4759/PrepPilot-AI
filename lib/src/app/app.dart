@@ -7,7 +7,7 @@ import '../features/results/past_mistakes_screen.dart';
 import '../features/results/vocabulary_mistakes_screen.dart';
 import '../features/profile_setting/profile.dart';
 import '../features/profile_setting/edit_profile.dart';
-import '../features/about.dart';
+// import '../features/about.dart';
 import '../features/setting.dart';
 import '../features/skills/index.dart';
 import 'main_shell.dart';
@@ -33,7 +33,7 @@ class PrepPilotApp extends StatelessWidget {
         '/skills/writing/writingmodule_1': (_) => const WritingModule_1(),
         '/profile': (_) => const ProfileScreen(),
         '/profile/edit': (_) => const EditProfileScreen(),
-  '/about': (_) => const AboutScreen(),
+        // '/about': (_) => const AboutScreen(),
         '/settings': (_) => const SettingScreen(),
         '/results': (_) => const ResultsScreen(),
         '/feedback': (_) => const FeedbackScreen(),
