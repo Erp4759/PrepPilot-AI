@@ -1,5 +1,24 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:dart_openai/dart_openai.dart';
 import 'src/app/app.dart';
-import 'src/bootstrap/bootstrap.dart';
 
-void main() => bootstrap(() => const ProviderScope(child: PrepPilotApp()));
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
+
+  // Initialize Supabase
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+  );
+
+  // Initialize OpenAI
+  OpenAI.apiKey = dotenv.env['CHATGPT_API_KEY']!;
+
+  runApp(const ProviderScope(child: PrepPilotApp()));
+}
