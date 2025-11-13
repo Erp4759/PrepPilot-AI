@@ -1,8 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
-class ListeningModule_1 extends StatelessWidget{
-  const ListeningModule_1({super.key});
+class ListeningPredictingAnswersScreen extends StatelessWidget{
+  const ListeningPredictingAnswersScreen({super.key});
 
   @override
   Widget build(BuildContext context){
@@ -36,29 +36,28 @@ class ListeningModule_1 extends StatelessWidget{
                   ],
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      size: 300,
-                      Icons.volume_up
-                    ),
-                  ],
+                IconButton(
+                  icon: Icon(Icons.volume_up, size: 300),
+                  onPressed: () {},
                 ),
                 const SizedBox(height: 16),
                 Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [const Color.fromARGB(255, 63, 225, 68).withOpacity(0.4),const Color.fromARGB(255, 60, 91, 76).withOpacity(0.4)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.8,
                   ),
-                  alignment: Alignment.center,
                   child: Container(
-                    height: 64,
-                    width: 160,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [const Color.fromARGB(255, 63, 225, 68).withOpacity(0.4),const Color.fromARGB(255, 60, 91, 76).withOpacity(0.4)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    alignment: Alignment.center,
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
@@ -71,35 +70,48 @@ class ListeningModule_1 extends StatelessWidget{
                           ),
                         ),
                         const SizedBox(width: 10),
-                        IconButton(
-                          icon: Icon(Icons.add),
-                          onPressed: () async {
-                            final result = await showDialog(
-                              context: context,
-                              builder: (BuildContext context) {
-                                return SimpleDialog(
+                        SizedBox(
+                          height: 40,
+                          width: 40,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.all(0),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                ),
+                            ),
+                            child: Icon(
+                              Icons.add,
+                              size: 24,
+                              color: Colors.black.withOpacity(0.6),
+                            ),
+                            onPressed: () async {
+                              final result = await showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                              return SimpleDialog(
                                   title: Text('What was James doing on 3pm?'),
-                                  children: [
-                                    for(int i = 0; i < 5; i++)
-                                      SimpleDialogOption(
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                          child: Text('1. He was playing soccer.')
-                                        ),
-                                        onPressed: () => Navigator.pop(context, i),
+                                    children: [
+                                      for(int i = 0; i < 5; i++)
+                                        SimpleDialogOption(
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                            child: Text('1. He was playing soccer.')
+                                          ),
+                                          onPressed: () => Navigator.pop(context, i),
                                       ),
-                                  ],
-                                );
-                              },
-                            );
-                          },
-                          color: Colors.white.withOpacity(0.8),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 32),
+                ),                
+                const SizedBox(height: 48),
                 _GlassButton(
                   label: 'Submit',
                   onTap: () => Navigator.of(context).pushNamed('/results'),
