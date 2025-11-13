@@ -48,7 +48,6 @@ dependencies:
   flutter_dotenv: ^6.0.0
   package_info_plus: ^4.0.0
   supabase_flutter: ^2.10.3
-  supabase_flutter: ^2.10.3
   dart_openai: ^6.1.0
 
 dev_dependencies:
