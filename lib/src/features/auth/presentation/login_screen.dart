@@ -1,11 +1,58 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
+import '../../../library/auth_helper.dart';
 import 'widgets/glass_form.dart';
+import '../../../app/main_shell.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
   static const routeName = '/login';
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await AuthHelper.login(email: email, password: password);
+
+      // Navigate to home/main shell
+      if (!mounted) return;
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const MainShell()));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Login failed: $e')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,21 +66,10 @@ class LoginScreen extends StatelessWidget {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // subtle gradient bg
           const _AuthBackdrop(),
           SingleChildScrollView(
             child: GlassFormCard(
               title: 'Welcome back',
-              children: const [
-                GlassTextField(
-                  label: 'Email',
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                SizedBox(height: 12),
-                GlassTextField(label: 'Password', obscure: true),
-                SizedBox(height: 16),
-                GlassPrimaryButton(label: 'Sign in', onPressed: _noop),
-              ],
               footer: Row(
                 children: [
                   const Text("Don't have an account?"),
@@ -45,6 +81,24 @@ class LoginScreen extends StatelessWidget {
                   ),
                 ],
               ),
+              children: [
+                GlassTextField(
+                  label: 'Email',
+                  keyboardType: TextInputType.emailAddress,
+                  controller: _emailController,
+                ),
+                const SizedBox(height: 12),
+                GlassTextField(
+                  label: 'Password',
+                  obscure: true,
+                  controller: _passwordController,
+                ),
+                const SizedBox(height: 16),
+                GlassPrimaryButton(
+                  label: _isLoading ? 'Signing in...' : 'Sign in',
+                  onPressed: _isLoading ? null : () async => await _login(),
+                ),
+              ],
             ),
           ),
         ],
@@ -52,8 +106,6 @@ class LoginScreen extends StatelessWidget {
     );
   }
 }
-
-void _noop() {}
 
 class _AuthBackdrop extends StatelessWidget {
   const _AuthBackdrop();

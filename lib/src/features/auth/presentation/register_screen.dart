@@ -1,11 +1,62 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import '../../../library/auth_helper.dart';
 import 'widgets/glass_form.dart';
 
-class RegisterScreen extends StatelessWidget {
+class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
   static const routeName = '/register';
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _register() async {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await AuthHelper.register(
+        email: email,
+        password: password,
+        username: name,
+      );
+
+      Navigator.of(context).pushReplacementNamed('/home');
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Registration failed: $e')));
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,24 +70,13 @@ class RegisterScreen extends StatelessWidget {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // subtle gradient bg
           const _AuthBackdrop(),
           SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
             child: GlassFormCard(
               title: 'Create your account',
-              children: const [
-                GlassTextField(label: 'Name', keyboardType: TextInputType.name),
-                SizedBox(height: 12),
-                GlassTextField(
-                  label: 'Email',
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                SizedBox(height: 12),
-                GlassTextField(label: 'Password', obscure: true),
-                SizedBox(height: 16),
-                GlassPrimaryButton(label: 'Sign up', onPressed: _noop),
-              ],
               footer: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('Already have an account?'),
                   const SizedBox(width: 8),
@@ -47,6 +87,34 @@ class RegisterScreen extends StatelessWidget {
                   ),
                 ],
               ),
+              children: [
+                GlassTextField(
+                  label: 'Name',
+                  keyboardType: TextInputType.name,
+                  controller: _nameController,
+                ),
+                const SizedBox(height: 12),
+                GlassTextField(
+                  label: 'Email',
+                  keyboardType: TextInputType.emailAddress,
+                  controller: _emailController,
+                ),
+                const SizedBox(height: 12),
+                GlassTextField(
+                  label: 'Password',
+                  obscure: true,
+                  controller: _passwordController,
+                ),
+                const SizedBox(height: 16),
+                GlassPrimaryButton(
+                  label: _isLoading ? 'Creating...' : 'Sign up',
+                  onPressed: _isLoading
+                      ? null
+                      : () {
+                          _register().then((_) {});
+                        },
+                ),
+              ],
             ),
           ),
         ],
@@ -54,8 +122,6 @@ class RegisterScreen extends StatelessWidget {
     );
   }
 }
-
-void _noop() {}
 
 class _AuthBackdrop extends StatelessWidget {
   const _AuthBackdrop();

@@ -26,6 +26,7 @@ class PrepPilotApp extends StatelessWidget {
       routes: {
         LoginScreen.routeName: (_) => const LoginScreen(),
         RegisterScreen.routeName: (_) => const RegisterScreen(),
+        '/home': (_) => const MainShell(),
         '/skills': (_) => const SkillsMainScreen(),
         '/skills/listening': (_) => const ListeningMainScreen(),
         '/skills/listening/listeningmodule_1': (_) => const ListeningModule_1(),
