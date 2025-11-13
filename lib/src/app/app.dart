@@ -8,6 +8,7 @@ import '../features/results/vocabulary_mistakes_screen.dart';
 import '../features/profile_setting/profile.dart';
 import '../features/profile_setting/edit_profile.dart';
 //import '../features/about.dart';
+import '../features/auth/presentation/chatgpt_test_screen.dart';
 import '../features/setting.dart';
 import '../features/skills/index.dart';
 import 'main_shell.dart';
@@ -27,9 +28,11 @@ class PrepPilotApp extends StatelessWidget {
         LoginScreen.routeName: (_) => const LoginScreen(),
         RegisterScreen.routeName: (_) => const RegisterScreen(),
         '/home': (_) => const MainShell(),
+        '/chatgpt-test': (_) => const ChatGPTTestScreen(),
         '/skills': (_) => const SkillsMainScreen(),
         '/skills/listening': (_) => const ListeningHomeScreen(),
-        '/skills/listening/listening_focusing_on_disctractors.dart': (_) => const ListeningFocusingOnDistractorsScreen(),
+        '/skills/listening/listening_focusing_on_disctractors.dart': (_) =>
+            const ListeningFocusingOnDistractorsScreen(),
         '/skills/writing': (_) => const WritingMainScreen(),
         '/skills/writing/writingmodule_1': (_) => const WritingModule_1(),
         '/profile': (_) => const ProfileScreen(),

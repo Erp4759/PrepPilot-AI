@@ -220,6 +220,10 @@ class _CardScrollContent extends StatelessWidget {
                   Navigator.of(context).pushNamed(LoginScreen.routeName),
             ),
             _GlassButton(
+              label: 'CGPT Playground',
+              onTap: () => Navigator.of(context).pushNamed('/chatgpt-test'),
+            ),
+            _GlassButton(
               label: 'Take placement test (10–15 min)',
               onTap: () {},
               small: true,
