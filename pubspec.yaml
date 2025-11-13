@@ -46,6 +46,8 @@ dependencies:
   speech_to_text: ^7.3.0
   flutter_tts: ^4.0.2
   flutter_dotenv: ^6.0.0
+  package_info_plus: ^4.0.0
+  supabase_flutter: ^2.10.3
   supabase_flutter: ^2.10.3
   dart_openai: ^6.1.0
 
