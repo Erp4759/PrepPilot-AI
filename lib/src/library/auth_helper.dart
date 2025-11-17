@@ -22,6 +22,7 @@ class AuthHelper {
       await supabase.from('users').insert({
         'user_id': user.id,
         'username': username,
+        'email': email,
       });
 
       return response;

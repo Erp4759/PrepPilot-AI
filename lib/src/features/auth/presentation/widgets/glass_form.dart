@@ -72,10 +72,13 @@ class GlassTextField extends StatelessWidget {
     required this.label,
     this.obscure = false,
     this.keyboardType,
+    this.controller,
   });
+
   final String label;
   final bool obscure;
   final TextInputType? keyboardType;
+  final TextEditingController? controller;
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +90,7 @@ class GlassTextField extends StatelessWidget {
         TextFormField(
           obscureText: obscure,
           keyboardType: keyboardType,
+          controller: controller,
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.white.withOpacity(.85),
@@ -116,7 +120,7 @@ class GlassPrimaryButton extends StatelessWidget {
     required this.onPressed,
   });
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
