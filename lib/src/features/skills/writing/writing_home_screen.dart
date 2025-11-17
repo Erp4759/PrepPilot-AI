@@ -1,14 +1,11 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:prep_pilot_ai/src/features/skills/listening/listening_focusing_on_distractors.dart';
-import 'package:prep_pilot_ai/src/features/skills/listening/listening_note-taking.dart';
-import 'package:prep_pilot_ai/src/features/skills/listening/listening_predicting_answers.dart';
-export 'listening_focusing_on_distractors.dart';
-export 'listening_note-taking.dart';
-export 'listening_predicting_answers.dart';
+import 'package:prep_pilot_ai/src/features/skills/writing/writing_essay_structures.dart';
+import 'package:prep_pilot_ai/src/features/skills/writing/writing_paraphrasing.dart';
+import 'package:prep_pilot_ai/src/features/skills/writing/writing_linking_devices.dart';
 
-class ListeningHomeScreen extends StatelessWidget {
-  const ListeningHomeScreen({super.key});
+class WritingHomeScreen extends StatelessWidget {
+  const WritingHomeScreen({super.key});
 
   static const routeName = '/listening';
 
@@ -113,7 +110,7 @@ class ListeningHomeScreen extends StatelessWidget {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (context) =>
-                                    const ListeningFocusingOnDistractorsScreen(),
+                                    const WritingEssayStructuresScreen(),
                               ),
                             );
                           },
@@ -134,7 +131,7 @@ class ListeningHomeScreen extends StatelessWidget {
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => const ListeningNoteTakingScreen(),
+                                builder: (_) => const WritingParaphrasingScreen(),
                               ),
                             );
                           },
@@ -156,7 +153,7 @@ class ListeningHomeScreen extends StatelessWidget {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (context) =>
-                                    const ListeningPredictingAnswersScreen(),
+                                    const WritingLinkingDevicesScreen(),
                               ),
                             );
                           },

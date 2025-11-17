@@ -31,10 +31,15 @@ class PrepPilotApp extends StatelessWidget {
         '/chatgpt-test': (_) => const ChatGPTTestScreen(),
         '/skills': (_) => const SkillsMainScreen(),
         '/skills/listening': (_) => const ListeningHomeScreen(),
+<<<<<<< HEAD
         '/skills/listening/listening_focusing_on_disctractors.dart': (_) =>
             const ListeningFocusingOnDistractorsScreen(),
         '/skills/writing': (_) => const WritingMainScreen(),
         '/skills/writing/writingmodule_1': (_) => const WritingModule_1(),
+=======
+        '/skills/listening/listening_focusing_on_disctractors.dart': (_) => const ListeningFocusingOnDistractorsScreen(),
+        '/skills/writing': (_) => const WritingHomeScreen(),
+>>>>>>> 9282862 (listening, writing main screen update)
         '/profile': (_) => const ProfileScreen(),
         '/profile/edit': (_) => const EditProfileScreen(),
         // '/about': (_) => const AboutScreen(),
