@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../../../library/test_helper.dart';
 
 class ChatGPTTestScreen extends StatefulWidget {
   const ChatGPTTestScreen({super.key});
@@ -12,50 +10,36 @@ class ChatGPTTestScreen extends StatefulWidget {
 }
 
 class _ChatGPTTestScreenState extends State<ChatGPTTestScreen> {
-  final TextEditingController _promptController = TextEditingController();
+  final TextEditingController _difficultyController = TextEditingController();
+  final TextEditingController _testTypeController = TextEditingController();
+  final TextEditingController _moduleTypeController = TextEditingController();
+
   String _response = '';
   bool _isLoading = false;
 
-  Future<void> _sendPrompt() async {
-    final prompt = _promptController.text.trim();
-    if (prompt.isEmpty) return;
+  Future<void> _runTestGeneration() async {
+    final difficulty = _difficultyController.text.trim();
+    final testType = _testTypeController.text.trim();
+    final moduleType = _moduleTypeController.text.trim();
 
-    setState(() => _isLoading = true);
-
-    final apiKey = dotenv.env['CHATGPT_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('CHATGPT_API_KEY not set')));
-      setState(() => _isLoading = false);
+    if (difficulty.isEmpty || testType.isEmpty || moduleType.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill in all fields")),
+      );
       return;
     }
 
+    setState(() => _isLoading = true);
+
     try {
-      final response = await http.post(
-        Uri.parse('https://api.openai.com/v1/chat/completions'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
-        },
-        body: jsonEncode({
-          'model': 'gpt-4-turbo',
-          'messages': [
-            {'role': 'user', 'content': prompt},
-          ],
-          'temperature': 0.7,
-          'max_tokens': 500,
-        }),
+      // Use TestHelper to generate and store the test
+      final testId = await TestHelper.createAndStoreTest(
+        difficulty: difficulty,
+        testType: testType,
+        moduleType: moduleType,
       );
 
-      if (response.statusCode != 200) {
-        throw Exception('Failed: ${response.body}');
-      }
-
-      final data = jsonDecode(response.body);
-      final content = data['choices'][0]['message']['content'] as String;
-
-      setState(() => _response = content);
+      setState(() => _response = 'Test created successfully! Test ID: $testId');
     } catch (e) {
       setState(() => _response = 'Error: $e');
     } finally {
@@ -65,30 +49,47 @@ class _ChatGPTTestScreenState extends State<ChatGPTTestScreen> {
 
   @override
   void dispose() {
-    _promptController.dispose();
+    _difficultyController.dispose();
+    _testTypeController.dispose();
+    _moduleTypeController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ChatGPT Test')),
+      appBar: AppBar(title: const Text('Test Generator')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             TextField(
-              controller: _promptController,
+              controller: _difficultyController,
               decoration: const InputDecoration(
+                labelText: 'Difficulty (e.g. Band 5, Band 6)',
                 border: OutlineInputBorder(),
-                labelText: 'Enter your prompt',
               ),
-              maxLines: null,
             ),
             const SizedBox(height: 12),
+            TextField(
+              controller: _testTypeController,
+              decoration: const InputDecoration(
+                labelText: 'Test Type (e.g. Reading, Listening)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _moduleTypeController,
+              decoration: const InputDecoration(
+                labelText: 'Module Type (e.g. Scanning, Matching)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _isLoading ? null : _sendPrompt,
-              child: Text(_isLoading ? 'Loading...' : 'Send'),
+              onPressed: _isLoading ? null : _runTestGeneration,
+              child: Text(_isLoading ? 'Loading...' : 'Generate Test'),
             ),
             const SizedBox(height: 20),
             Expanded(
