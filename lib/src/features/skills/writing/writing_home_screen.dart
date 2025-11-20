@@ -7,7 +7,7 @@ import 'package:prep_pilot_ai/src/features/skills/writing/writing_linking_device
 class WritingHomeScreen extends StatelessWidget {
   const WritingHomeScreen({super.key});
 
-  static const routeName = '/listening';
+  static const routeName = '/writing';
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +62,7 @@ class WritingHomeScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Listening Skills',
+                                    'Writing Skills',
                                     style: Theme.of(context)
                                         .textTheme
                                         .labelSmall
@@ -76,7 +76,7 @@ class WritingHomeScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                'Master Listening Techniques',
+                                'Master Writing Techniques',
                                 style: Theme.of(context).textTheme.headlineLarge
                                     ?.copyWith(
                                       fontWeight: FontWeight.w800,
@@ -85,7 +85,7 @@ class WritingHomeScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Practice essential listening skills for high-stakes English exams',
+                                'Practice essential writing skills for high-stakes English exams',
                                 style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(color: const Color(0xFF5C6470)),
                               ),
@@ -97,7 +97,7 @@ class WritingHomeScreen extends StatelessWidget {
 
                         // Skills grid
                         _SkillCard(
-                          title: 'Focusing on distractors',
+                          title: 'Essay structures',
                           subtitle: 'Get the main idea quickly',
                           description:
                               'Learn to read quickly to understand the general meaning and main ideas without focusing on details',
@@ -119,7 +119,7 @@ class WritingHomeScreen extends StatelessWidget {
                         const SizedBox(height: 14),
 
                         _SkillCard(
-                          title: 'Note-taking',
+                          title: 'Linking devices',
                           subtitle: 'Find specific information',
                           description:
                               'Practice looking for specific facts, numbers, names, or dates by moving your eyes quickly across the text',
@@ -140,7 +140,7 @@ class WritingHomeScreen extends StatelessWidget {
                         const SizedBox(height: 14),
 
                         _SkillCard(
-                          title: 'Predicting answers',
+                          title: 'Paraphrasing',
                           subtitle: 'Read between the lines',
                           description:
                               'Develop the ability to understand implied meanings and draw conclusions from context clues',
@@ -196,19 +196,19 @@ class WritingHomeScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 16),
                               _ProgressItem(
-                                skill: 'Focusing on distractors',
+                                skill: 'Essay structures',
                                 progress: 0.0,
                                 color: const Color(0xFF6366F1),
                               ),
                               const SizedBox(height: 10),
                               _ProgressItem(
-                                skill: 'Note-taking',
+                                skill: 'Linking devices',
                                 progress: 0.0,
                                 color: const Color(0xFF2C8FFF),
                               ),
                               const SizedBox(height: 10),
                               _ProgressItem(
-                                skill: 'Predicting answers',
+                                skill: 'Paraphrasing',
                                 progress: 0.0,
                                 color: const Color(0xFF10B981),
                               ),                              
@@ -244,7 +244,7 @@ class WritingHomeScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 12),
                                   const Text(
-                                    'Reading Tips',
+                                    'Writing Tips',
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
@@ -291,7 +291,7 @@ class WritingHomeScreen extends StatelessWidget {
           _SmallBackButton(onTap: () => Navigator.of(context).pop()),
           const SizedBox(width: 12),
           const Text(
-            'Reading Practice',
+            'Writing Practice',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
         ],
