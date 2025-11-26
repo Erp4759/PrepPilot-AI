@@ -103,7 +103,7 @@ class TestHelper {
         'Authorization': 'Bearer $apiKey',
       },
       body: jsonEncode({
-        'model': 'gpt-4-turbo',
+        'model': 'gpt-4o-mini',
         'messages': [
           {'role': 'user', 'content': prompt},
         ],
@@ -135,7 +135,7 @@ class TestHelper {
     if (user == null) {
       throw Exception('User not authenticated');
     }
-    
+
     final testData = {
       "prompt_id": promptId,
       "user_id": user.id,

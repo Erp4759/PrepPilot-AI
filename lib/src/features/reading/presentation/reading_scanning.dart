@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../data/reading_agent.dart';
 
 enum TestState { initial, loading, test, results }
 
@@ -25,6 +26,10 @@ class _ReadingScanningScreenState extends State<ReadingScanningScreen> {
   String? _generatedPassage;
   List<Map<String, String>>? _generatedQuestions;
   final Map<int, TextEditingController> _answerControllers = {};
+
+  // LLM agent and results
+  final ReadingAgent _agent = ReadingAgent();
+  List<ReadingCheckResult>? _checkResults;
 
   @override
   void initState() {
@@ -69,17 +74,44 @@ class _ReadingScanningScreenState extends State<ReadingScanningScreen> {
   Future<void> _startTest() async {
     setState(() {
       _testState = TestState.loading;
+      _checkResults = null;
     });
 
-    // Simulate loading (replace with LLM call later)
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final test = await _agent.generate(
+        length: _mapLength(_selectedLength),
+        difficulty: _mapDifficulty(_selectedDifficulty),
+      );
 
-    // Generate mock test data (replace with LLM later)
-    _generateMockTest();
+      _generatedPassage = test.passage;
+      _generatedQuestions = test.questions
+          .map((q) => {'question': q})
+          .toList(growable: false);
 
-    setState(() {
-      _testState = TestState.test;
-    });
+      _answerControllers.clear();
+      for (int i = 0; i < _generatedQuestions!.length; i++) {
+        _answerControllers[i] = TextEditingController();
+      }
+
+      setState(() {
+        _testState = TestState.test;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _testState = TestState.initial;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to generate test: $e'),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
   }
 
   void _generateMockTest() {
@@ -163,20 +195,55 @@ The concept of neuroplasticity has transformed our understanding of the brain. P
     }
   }
 
-  void _submitAnswers() {
-    // TODO: Implement answer validation with LLM
+  Future<void> _submitAnswers() async {
+    if (_generatedPassage == null || _generatedQuestions == null) return;
+
+    final answers = List<String>.generate(
+      _generatedQuestions!.length,
+      (i) => _answerControllers[i]?.text.trim() ?? '',
+    );
+
     setState(() {
-      _testState = TestState.results;
+      _testState = TestState.loading;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Analyzing your answers...'),
-        backgroundColor: const Color(0xFF10B981),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    try {
+      final results = await _agent.checkAnswers(
+        passage: _generatedPassage!,
+        questions: _generatedQuestions!.map((e) => e['question']!).toList(),
+        answers: answers,
+      );
+      setState(() {
+        _checkResults = results;
+        _testState = TestState.results;
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Analysis complete!'),
+          backgroundColor: const Color(0xFF10B981),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _testState = TestState.test;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to check answers: $e'),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
   }
 
   void _restartTest() {
@@ -489,37 +556,126 @@ The concept of neuroplasticity has transformed our understanding of the brain. P
   }
 
   Widget _buildResultsScreen() {
+    final total = _generatedQuestions?.length ?? 0;
+    final correct = _checkResults?.where((r) => r.isCorrect).length ?? 0;
     return Center(
       child: _GlassCard(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF10B981), Color(0xFF059669)],
+            Row(
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF10B981), Color(0xFF059669)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.bar_chart_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(20),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Results',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$correct of $total correct',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF5C6470),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (_checkResults != null) ...[
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              ..._checkResults!.map(
+                (r) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color:
+                              (r.isCorrect
+                                      ? const Color(0xFF10B981)
+                                      : const Color(0xFFEF4444))
+                                  .withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          r.isCorrect ? Icons.check : Icons.close,
+                          size: 16,
+                          color: r.isCorrect
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFEF4444),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Q${r.index + 1}: ${_generatedQuestions![r.index]['question']!}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                height: 1.3,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            if (r.feedback.isNotEmpty)
+                              Text(
+                                r.feedback,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF5C6470),
+                                ),
+                              ),
+                            if (r.expected.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Expected: ${r.expected}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF1E293B),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              child: const Icon(
-                Icons.check_circle_outline,
-                color: Colors.white,
-                size: 40,
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Test Submitted!',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Your answers are being analyzed...',
-              style: TextStyle(fontSize: 14, color: Color(0xFF5C6470)),
-            ),
-            const SizedBox(height: 24),
+            ],
+            const SizedBox(height: 16),
             _PrimaryButton(
               label: 'Take Another Test',
               onTap: _restartTest,
@@ -574,6 +730,36 @@ The concept of neuroplasticity has transformed our understanding of the brain. P
         return 'Medium';
       case PassageLength.long:
         return 'Long';
+    }
+  }
+
+  ReadingLength _mapLength(PassageLength l) {
+    switch (l) {
+      case PassageLength.short:
+        return ReadingLength.short;
+      case PassageLength.medium:
+        return ReadingLength.medium;
+      case PassageLength.long:
+        return ReadingLength.long;
+    }
+  }
+
+  ReadingDifficulty _mapDifficulty(Difficulty d) {
+    switch (d) {
+      case Difficulty.a1:
+        return ReadingDifficulty.a1;
+      case Difficulty.a2:
+        return ReadingDifficulty.a2;
+      case Difficulty.b1:
+        return ReadingDifficulty.b1;
+      case Difficulty.b2:
+        return ReadingDifficulty.b2;
+      case Difficulty.c1:
+        return ReadingDifficulty.c1;
+      case Difficulty.c2:
+        return ReadingDifficulty.c2;
+      case Difficulty.adaptive:
+        return ReadingDifficulty.adaptive;
     }
   }
 }
@@ -797,15 +983,10 @@ class _ScrollableTextArea extends StatelessWidget {
 }
 
 class _GlassTextField extends StatelessWidget {
-  const _GlassTextField({
-    required this.controller,
-    required this.hintText,
-    this.onSubmitted,
-  });
+  const _GlassTextField({required this.controller, required this.hintText});
 
   final TextEditingController controller;
   final String hintText;
-  final Function(String)? onSubmitted;
 
   @override
   Widget build(BuildContext context) {
@@ -824,7 +1005,6 @@ class _GlassTextField extends StatelessWidget {
           ),
           child: TextField(
             controller: controller,
-            onSubmitted: onSubmitted,
             maxLines: null,
             style: const TextStyle(fontSize: 15, color: Color(0xFF1E293B)),
             decoration: InputDecoration(

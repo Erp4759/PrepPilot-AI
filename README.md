@@ -36,6 +36,27 @@ flutter pub get
 flutter run
 ```
 
+## AI Agent
+- Location: `lib/src/services/ai_agent.dart`
+- Default model: `gpt-4o-mini` (cost‑efficient). Reads `CHATGPT_API_KEY` from `env`.
+
+Usage:
+```dart
+import 'package:prep_pilot_ai/src/services/ai_agent.dart';
+
+// Quick chat
+final reply = await aiChat(system: 'Be concise.', user: 'Summarize this text.');
+
+// Strict JSON
+final result = await aiJson<Map<String, dynamic>>(
+	userPrompt: 'Return {"topic":"...","items":[...]} as JSON only',
+);
+
+// Custom instance / model
+final agent = AiAgent(model: 'gpt-4o-mini');
+final text = await agent.respond(user: 'Hello');
+```
+
 ## Next Steps
 - Implement unified AIService abstraction.
 - Add domain models for tasks & evaluations (Freezed).
