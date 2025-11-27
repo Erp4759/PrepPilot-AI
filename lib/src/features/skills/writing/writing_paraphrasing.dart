@@ -2,20 +2,21 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../data/writing_essay.dart';
 
-class WritingParaphrasingScreen extends StatefulWidget{
+class WritingParaphrasingScreen extends StatefulWidget {
   const WritingParaphrasingScreen({super.key});
 
   @override
-  State<WritingParaphrasingScreen> createState() => _WritingParaphrasingScreenState();
+  State<WritingParaphrasingScreen> createState() =>
+      _WritingParaphrasingScreenState();
 }
 
-class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen>{
+class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
   final _essayController = TextEditingController();
   String? _userEssay;
 
   @override
-  Widget build(BuildContext context){
-    final topic = topics;    
+  Widget build(BuildContext context) {
+    final topic = topics;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -63,9 +64,9 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen>{
                           hintText: 'Write down essay here...',
                           alignLabelWithHint: true,
                         ),
-                        
+
                         validator: (value) {
-                          if(value == null || value.isEmpty){
+                          if (value == null || value.isEmpty) {
                             return 'Please write down essay.';
                           }
                           return null;
@@ -91,6 +92,7 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen>{
     );
   }
 }
+
 class _GlassButton extends StatelessWidget {
   const _GlassButton({
     required this.label,
@@ -114,8 +116,8 @@ class _GlassButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.black.withValues(alpha: .06)),
-              color: Colors.white.withValues(alpha: .72),
+              border: Border.all(color: Colors.black.withOpacity(.06)),
+              color: Colors.white.withOpacity(.72),
             ),
             child: Text(
               label,

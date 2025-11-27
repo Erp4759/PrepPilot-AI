@@ -2,20 +2,22 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../data/writing_essay.dart';
 
-class WritingLinkingDevicesScreen extends StatefulWidget{
+class WritingLinkingDevicesScreen extends StatefulWidget {
   const WritingLinkingDevicesScreen({super.key});
 
   @override
-  State<WritingLinkingDevicesScreen> createState() => _WritingLinkingDevicesScreenState();
+  State<WritingLinkingDevicesScreen> createState() =>
+      _WritingLinkingDevicesScreenState();
 }
 
-class _WritingLinkingDevicesScreenState extends State<WritingLinkingDevicesScreen>{
+class _WritingLinkingDevicesScreenState
+    extends State<WritingLinkingDevicesScreen> {
   final _essayController = TextEditingController();
   String? _userEssay;
 
   @override
-  Widget build(BuildContext context){
-    final topic = topics;    
+  Widget build(BuildContext context) {
+    final topic = topics;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -63,9 +65,9 @@ class _WritingLinkingDevicesScreenState extends State<WritingLinkingDevicesScree
                           hintText: 'Write down essay here...',
                           alignLabelWithHint: true,
                         ),
-                        
+
                         validator: (value) {
-                          if(value == null || value.isEmpty){
+                          if (value == null || value.isEmpty) {
                             return 'Please write down essay.';
                           }
                           return null;
@@ -91,6 +93,7 @@ class _WritingLinkingDevicesScreenState extends State<WritingLinkingDevicesScree
     );
   }
 }
+
 class _GlassButton extends StatelessWidget {
   const _GlassButton({
     required this.label,
@@ -114,8 +117,8 @@ class _GlassButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.black.withValues(alpha: .06)),
-              color: Colors.white.withValues(alpha: .72),
+              border: Border.all(color: Colors.black.withOpacity(.06)),
+              color: Colors.white.withOpacity(.72),
             ),
             child: Text(
               label,
