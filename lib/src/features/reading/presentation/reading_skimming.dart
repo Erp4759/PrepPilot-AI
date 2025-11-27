@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:prep_pilot_ai/src/services/ai_agent.dart';
+import 'dart:convert';
 
 enum TestState { initial, loading, test, results }
 
@@ -76,14 +78,65 @@ class _ReadingSkimmingScreenState extends State<ReadingSkimmingScreen> {
       _testState = TestState.loading;
     });
 
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final difficultyLabel = _selectedDifficulty.name.toUpperCase();
+      final lengthLabel = switch (_selectedLength) {
+        PassageLength.short => 'short (100-150 words)',
+        PassageLength.medium => 'medium (250-350 words)',
+        PassageLength.long => 'long (450-650 words)',
+      };
 
-    _generateMockTest();
-    _startTimer();
+      final prompt =
+          '''You are an exam item writer for SKIMMING reading tasks.
+Create a passage and quick skimming questions.
 
-    setState(() {
-      _testState = TestState.test;
-    });
+Constraints:
+- CEFR level: $difficultyLabel
+- Passage length: $lengthLabel
+- Return JSON only with this shape:
+{"passage":"...","questions":[{"type":"multipleChoice|shortAnswer|trueFalse","question":"...","options":["..."],"correctAnswer": index_or_value}, ...]}
+''';
+
+      final parsed = await aiJson<Map<String, dynamic>>(
+        userPrompt: prompt,
+        system: 'Return JSON only. No prose. Use double quotes.',
+        temperature: 0.6,
+        maxTokens: 1200,
+      );
+
+      _generatedPassage = (parsed['passage'] as String).trim();
+      final qRaw = (parsed['questions'] as List).cast<dynamic>();
+      _generatedQuestions = qRaw
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+
+      _totalSeconds = _getTimeLimit();
+      _remainingSeconds = _totalSeconds;
+      _answers.clear();
+      _startTimer();
+
+      setState(() {
+        _testState = TestState.test;
+      });
+    } catch (e) {
+      // Fallback to mock test if generation fails
+      _generateMockTest();
+      _startTimer();
+      if (!mounted) return;
+      setState(() {
+        _testState = TestState.test;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('AI generation failed, using mock test: $e'),
+          backgroundColor: const Color(0xFFF59E0B),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
   }
 
   void _generateMockTest() {
@@ -245,17 +298,90 @@ Despite these challenges, the IoT market continues to grow rapidly. The technolo
   void _submitAnswers() {
     _timer?.cancel();
     setState(() {
-      _testState = TestState.results;
+      _testState = TestState.loading;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Analyzing your answers...'),
-        backgroundColor: const Color(0xFF10B981),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    _analyzeAnswers();
+  }
+
+  Future<void> _analyzeAnswers() async {
+    if (_generatedPassage == null || _generatedQuestions == null) return;
+
+    final items = <Map<String, dynamic>>[];
+    for (var i = 0; i < _generatedQuestions!.length; i++) {
+      final q = _generatedQuestions![i];
+      items.add({
+        'index': i,
+        'type': q['type'],
+        'question': q['question'],
+        'options': q['options'] ?? [],
+        'correctAnswer': q['correctAnswer'],
+        'user_answer': _answers.containsKey(i) ? _answers[i] : null,
+      });
+    }
+
+    final prompt =
+        '''You are an automated grader for SKIMMING reading tasks.
+Given the passage and the list of questions with user answers, grade each item as correct or incorrect.
+
+Return JSON array only: [{"index":0,"is_correct":true|false,"expected":"short expected answer","feedback":"brief feedback","score":0|1}, ...]
+
+Passage:\n${_generatedPassage}\n\nData:${jsonEncode(items)}
+''';
+
+    try {
+      final parsed = await aiJson<List<dynamic>>(
+        userPrompt: prompt,
+        system: 'Return JSON only. No prose. Use double quotes.',
+        temperature: 0.0,
+        maxTokens: 1200,
+      );
+
+      final results = parsed
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+
+      // Convert results into simple feedback UI: store expected/feedback in _generatedQuestions
+      for (final r in results) {
+        final idx = (r['index'] as num).toInt();
+        if (idx >= 0 && idx < _generatedQuestions!.length) {
+          _generatedQuestions![idx]['_is_correct'] = r['is_correct'];
+          _generatedQuestions![idx]['_expected'] = r['expected'] ?? '';
+          _generatedQuestions![idx]['_feedback'] = r['feedback'] ?? '';
+          _generatedQuestions![idx]['_score'] =
+              r['score'] ?? (r['is_correct'] == true ? 1 : 0);
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _testState = TestState.results;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Analysis complete!'),
+          backgroundColor: const Color(0xFF10B981),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _testState = TestState.test);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to analyze answers: $e'),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
   }
 
   void _restartTest() {
