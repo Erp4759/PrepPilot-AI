@@ -1,5 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:prep_pilot_ai/src/services/ai_agent.dart';
+import 'dart:convert';
 
 enum TestState { initial, loading, test, results }
 
@@ -13,7 +15,7 @@ enum InferenceType {
   characterMotivation,
   causeEffect,
   prediction,
-  assumption
+  assumption,
 }
 
 class ReadingInferenceScreen extends StatefulWidget {
@@ -71,13 +73,108 @@ class _ReadingInferenceScreenState extends State<ReadingInferenceScreen> {
       _testState = TestState.loading;
     });
 
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final difficultyLabel = _selectedDifficulty.name.toUpperCase();
+      final lengthLabel = switch (_selectedLength) {
+        PassageLength.short => 'short (100-150 words)',
+        PassageLength.medium => 'medium (250-350 words)',
+        PassageLength.long => 'long (450-650 words)',
+      };
 
-    _generateMockTest();
+      final prompt =
+          '''You are an exam item writer for INFERENCE reading tasks.
+Create a passage and inference questions.
 
-    setState(() {
-      _testState = TestState.test;
-    });
+Important generation rules (must follow):
+- Vary topic and context each time; avoid repeating the same characters or settings.
+- Do NOT use the name "Maria" or reuse named characters from examples (e.g. Sarah, Dr. Chen).
+- Make each passage interesting and distinct (every output should have a different topic).
+
+Constraints:
+- CEFR level: $difficultyLabel
+- Passage length: $lengthLabel
+- Return JSON only with this shape:
+{"passage":"...","topic":"short topic label","questions":[{"type":"tone|impliedMeaning|characterMotivation|causeEffect|prediction|assumption","question":"...","options":["..."],"hint":"..."}, ...]}
+''';
+
+      final parsed = await aiJson<Map<String, dynamic>>(
+        userPrompt: prompt,
+        system:
+            'Return JSON only. No prose. Use double quotes. Vary topics, avoid repeating names.',
+        temperature: 0.9,
+        maxTokens: 1400,
+      );
+
+      _generatedPassage = (parsed['passage'] as String).trim();
+      final qRaw = (parsed['questions'] as List).cast<dynamic>();
+
+      // Normalize incoming question objects to use InferenceType and consistent fields
+      _generatedQuestions = qRaw.map((e) {
+        final m = Map<String, dynamic>.from(e as Map);
+
+        final typeRaw = m['type'];
+        if (typeRaw is String) {
+          m['type'] = _parseInferenceType(typeRaw);
+        } else if (typeRaw is InferenceType) {
+          // ok
+        } else {
+          m['type'] = InferenceType.impliedMeaning;
+        }
+
+        if (m.containsKey('options') &&
+            m['options'] != null &&
+            m['options'] is! List) {
+          try {
+            m['options'] = List<dynamic>.from(m['options']);
+          } catch (_) {
+            m['options'] = <dynamic>[];
+          }
+        }
+
+        // Normalize correctAnswer similar to skimming (if provided)
+        final ca = m['correctAnswer'];
+        final it = m['type'] as InferenceType;
+        if (it != InferenceType.impliedMeaning &&
+            it != InferenceType.assumption &&
+            ca != null) {
+          if (ca is String && m['options'] is List) {
+            final opts = (m['options'] as List)
+                .map((o) => o.toString())
+                .toList();
+            final idx = opts.indexWhere(
+              (o) => o.toLowerCase() == ca.toLowerCase(),
+            );
+            m['correctAnswer'] = idx >= 0 ? idx : ca;
+          } else if (ca is num) {
+            m['correctAnswer'] = ca.toInt();
+          }
+        }
+
+        return m;
+      }).toList();
+
+      _answers.clear();
+      setState(() {
+        _testState = TestState.test;
+      });
+    } catch (e) {
+      // fallback to mock
+      _generateMockTest();
+      if (!mounted) return;
+      setState(() {
+        _testState = TestState.test;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('AI generation failed, using mock test: $e'),
+          backgroundColor: const Color(0xFFF59E0B),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
   }
 
   void _generateMockTest() {
@@ -110,7 +207,8 @@ Dr. Chen continued her work, but she stopped sharing preliminary results at lab 
           'type': InferenceType.impliedMeaning,
           'question':
               'Was Sarah meeting someone at the café? What makes you think so?',
-          'hint': 'Think about why she kept checking her watch and watching the door',
+          'hint':
+              'Think about why she kept checking her watch and watching the door',
         },
         {
           'type': InferenceType.tone,
@@ -160,7 +258,8 @@ Dr. Chen continued her work, but she stopped sharing preliminary results at lab 
           'type': InferenceType.causeEffect,
           'question':
               'Based on the passage, what can you infer about the relationship between the keeper and the fishing captains?',
-          'hint': 'Notice that they still look for his light but stay quiet about it',
+          'hint':
+              'Notice that they still look for his light but stay quiet about it',
         },
       ];
     } else {
@@ -225,18 +324,92 @@ Dr. Chen continued her work, but she stopped sharing preliminary results at lab 
   }
 
   void _submitAnswers() {
+    // Run grader via AI and populate _generatedQuestions with feedback
+    _analyzeInferenceAnswers();
+  }
+
+  Future<void> _analyzeInferenceAnswers() async {
+    if (_generatedPassage == null || _generatedQuestions == null) return;
+
     setState(() {
-      _testState = TestState.results;
+      _testState = TestState.loading;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Analyzing your inferences...'),
-        backgroundColor: const Color(0xFF10B981),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    final items = <Map<String, dynamic>>[];
+    for (var i = 0; i < _generatedQuestions!.length; i++) {
+      final q = _generatedQuestions![i];
+      items.add({
+        'index': i,
+        'type': q['type'] is InferenceType
+            ? _inferenceTypeToString(q['type'] as InferenceType)
+            : q['type'].toString(),
+        'question': q['question'],
+        'options': q['options'] ?? [],
+        'user_answer': _answers.containsKey(i) ? _answers[i] : null,
+      });
+    }
+
+    final prompt =
+        '''You are an automated grader for INFERENCE reading tasks.
+Given the passage and the list of questions with user answers, grade each item. Provide brief expected answer and feedback for inference-style questions.
+
+Return JSON array only: [{"index":0,"is_correct":true|false,"expected":"short expected answer","feedback":"brief feedback","score":0|1}, ...]
+
+Passage:\n${_generatedPassage}\n\nData:${jsonEncode(items)}
+''';
+
+    try {
+      final parsed = await aiJson<List<dynamic>>(
+        userPrompt: prompt,
+        system: 'Return JSON only. No prose. Use double quotes.',
+        temperature: 0.0,
+        maxTokens: 1200,
+      );
+
+      final results = parsed
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+
+      for (final r in results) {
+        final idx = (r['index'] as num).toInt();
+        if (idx >= 0 && idx < _generatedQuestions!.length) {
+          _generatedQuestions![idx]['_is_correct'] = r['is_correct'];
+          _generatedQuestions![idx]['_expected'] = r['expected'] ?? '';
+          _generatedQuestions![idx]['_feedback'] = r['feedback'] ?? '';
+          _generatedQuestions![idx]['_score'] =
+              r['score'] ?? (r['is_correct'] == true ? 1 : 0);
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _testState = TestState.results;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Analysis complete!'),
+          backgroundColor: const Color(0xFF10B981),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _testState = TestState.test);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to analyze answers: $e'),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
   }
 
   void _restartTest() {
@@ -369,8 +542,11 @@ Dr. Chen continued her work, but she stopped sharing preliminary results at lab 
               ),
               borderRadius: BorderRadius.circular(12),
             ),
-            child:
-                const Icon(Icons.psychology_outlined, color: Colors.white, size: 24),
+            child: const Icon(
+              Icons.psychology_outlined,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -396,6 +572,47 @@ Dr. Chen continued her work, but she stopped sharing preliminary results at lab 
         ],
       ),
     );
+  }
+
+  // Helpers: parse inference type strings and serialize to string
+  InferenceType _parseInferenceType(String raw) {
+    final key = raw.toLowerCase().replaceAll(RegExp(r"[^a-z]"), '');
+    switch (key) {
+      case 'tone':
+        return InferenceType.tone;
+      case 'impliedmeaning':
+      case 'implied':
+        return InferenceType.impliedMeaning;
+      case 'charactermotivation':
+      case 'character':
+        return InferenceType.characterMotivation;
+      case 'causeeffect':
+      case 'causeandeffect':
+        return InferenceType.causeEffect;
+      case 'prediction':
+        return InferenceType.prediction;
+      case 'assumption':
+        return InferenceType.assumption;
+      default:
+        return InferenceType.impliedMeaning;
+    }
+  }
+
+  String _inferenceTypeToString(InferenceType t) {
+    switch (t) {
+      case InferenceType.tone:
+        return 'tone';
+      case InferenceType.impliedMeaning:
+        return 'impliedMeaning';
+      case InferenceType.characterMotivation:
+        return 'characterMotivation';
+      case InferenceType.causeEffect:
+        return 'causeEffect';
+      case InferenceType.prediction:
+        return 'prediction';
+      case InferenceType.assumption:
+        return 'assumption';
+    }
   }
 
   Widget _buildInstructionCard() {
@@ -427,7 +644,8 @@ Dr. Chen continued her work, but she stopped sharing preliminary results at lab 
           const SizedBox(height: 12),
           _InstructionItem(
             icon: Icons.search,
-            text: 'Look for clues in the text (actions, descriptions, dialogue)',
+            text:
+                'Look for clues in the text (actions, descriptions, dialogue)',
           ),
           const SizedBox(height: 8),
           _InstructionItem(
@@ -476,10 +694,7 @@ Dr. Chen continued her work, but she stopped sharing preliminary results at lab 
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFA500).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(6),
@@ -540,9 +755,9 @@ Dr. Chen continued her work, but she stopped sharing preliminary results at lab 
           const SizedBox(height: 8),
           Text(
             'Read between the lines and make logical deductions',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: const Color(0xFF5C6470),
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: const Color(0xFF5C6470)),
           ),
           const SizedBox(height: 20),
           ListView.separated(
@@ -638,6 +853,15 @@ Dr. Chen continued her work, but she stopped sharing preliminary results at lab 
   }
 
   Widget _buildResultsScreen() {
+    final total = _generatedQuestions?.length ?? 0;
+    final scoreSum =
+        _generatedQuestions?.fold<int>(0, (acc, q) {
+          final s = q['_score'];
+          if (s is num) return acc + s.toInt();
+          return acc + 0;
+        }) ??
+        0;
+
     return Center(
       child: _GlassCard(
         child: Column(
@@ -658,17 +882,73 @@ Dr. Chen continued her work, but she stopped sharing preliminary results at lab 
                 size: 40,
               ),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'Test Submitted!',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            const SizedBox(height: 16),
+            Text(
+              'Results: $scoreSum / $total',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Your inferences are being analyzed...',
-              style: TextStyle(fontSize: 14, color: Color(0xFF5C6470)),
+            Text(
+              'Review your answers and the AI feedback below',
+              style: const TextStyle(fontSize: 13, color: Color(0xFF5C6470)),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 300,
+              width: 520,
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: _generatedQuestions?.length ?? 0,
+                separatorBuilder: (_, __) => const Divider(),
+                itemBuilder: (context, idx) {
+                  final q = _generatedQuestions![idx];
+                  final isCorrect = q['_is_correct'] == true;
+                  final expected = q['_expected'] ?? '';
+                  final feedback = q['_feedback'] ?? '';
+                  final user = _answers.containsKey(idx) ? _answers[idx] : null;
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: isCorrect
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFEF4444),
+                      child: Icon(
+                        isCorrect ? Icons.check : Icons.close,
+                        color: Colors.white,
+                      ),
+                    ),
+                    title: Text(q['question'] ?? ''),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 6),
+                        Text(
+                          'Your answer: ${user ?? '—'}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Expected: $expected',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Feedback: $feedback',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF5C6470),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
             _PrimaryButton(
               label: 'Take Another Test',
               onTap: _restartTest,
@@ -878,11 +1158,7 @@ class _InstructionItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(
-          icon,
-          size: 16,
-          color: const Color(0xFF10B981),
-        ),
+        Icon(icon, size: 16, color: const Color(0xFF10B981)),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -1018,10 +1294,7 @@ class _QuestionWidget extends StatelessWidget {
             onSelected: onAnswerChanged,
           )
         else
-          _OpenEndedAnswer(
-            value: answer,
-            onChanged: onAnswerChanged,
-          ),
+          _OpenEndedAnswer(value: answer, onChanged: onAnswerChanged),
       ],
     );
   }
@@ -1148,10 +1421,7 @@ class _MultipleChoiceOptions extends StatelessWidget {
 }
 
 class _OpenEndedAnswer extends StatelessWidget {
-  const _OpenEndedAnswer({
-    required this.value,
-    required this.onChanged,
-  });
+  const _OpenEndedAnswer({required this.value, required this.onChanged});
 
   final String? value;
   final Function(String) onChanged;
