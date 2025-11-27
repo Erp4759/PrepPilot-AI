@@ -106,9 +106,60 @@ Constraints:
 
       _generatedPassage = (parsed['passage'] as String).trim();
       final qRaw = (parsed['questions'] as List).cast<dynamic>();
-      _generatedQuestions = qRaw
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList();
+
+      // Normalize incoming question objects: convert type strings to QuestionType,
+      // ensure options are lists, and normalize correctAnswer types.
+      _generatedQuestions = qRaw.map((e) {
+        final m = Map<String, dynamic>.from(e as Map);
+
+        // Normalize type -> QuestionType
+        final typeRaw = m['type'];
+        if (typeRaw is String) {
+          m['type'] = _parseQuestionType(typeRaw);
+        } else if (typeRaw is QuestionType) {
+          // already an enum
+        } else {
+          m['type'] = QuestionType.shortAnswer;
+        }
+
+        // Ensure options is a List
+        if (m.containsKey('options') &&
+            m['options'] != null &&
+            m['options'] is! List) {
+          try {
+            m['options'] = List<dynamic>.from(m['options']);
+          } catch (_) {
+            m['options'] = <dynamic>[];
+          }
+        }
+
+        // Normalize correctAnswer depending on question type
+        final qType = m['type'] as QuestionType;
+        final ca = m['correctAnswer'];
+        if (qType == QuestionType.multipleChoice) {
+          if (ca is num) {
+            m['correctAnswer'] = ca.toInt();
+          } else if (ca is String && m['options'] is List) {
+            final opts = (m['options'] as List)
+                .map((o) => o.toString())
+                .toList();
+            final idx = opts.indexWhere(
+              (o) => o.toLowerCase() == ca.toLowerCase(),
+            );
+            m['correctAnswer'] = idx >= 0 ? idx : ca;
+          }
+        } else if (qType == QuestionType.trueFalse) {
+          if (ca is String) {
+            m['correctAnswer'] = ca.toLowerCase() == 'true';
+          } else if (ca is num) {
+            m['correctAnswer'] = ca != 0;
+          }
+        } else if (qType == QuestionType.shortAnswer) {
+          if (ca != null && ca is! String) m['correctAnswer'] = ca.toString();
+        }
+
+        return m;
+      }).toList();
 
       _totalSeconds = _getTimeLimit();
       _remainingSeconds = _totalSeconds;
@@ -312,7 +363,9 @@ Despite these challenges, the IoT market continues to grow rapidly. The technolo
       final q = _generatedQuestions![i];
       items.add({
         'index': i,
-        'type': q['type'],
+        'type': q['type'] is QuestionType
+            ? _questionTypeToString(q['type'] as QuestionType)
+            : q['type'].toString(),
         'question': q['question'],
         'options': q['options'] ?? [],
         'correctAnswer': q['correctAnswer'],
@@ -898,6 +951,40 @@ Passage:\n${_generatedPassage}\n\nData:${jsonEncode(items)}
         return 'Medium';
       case PassageLength.long:
         return 'Long';
+    }
+  }
+
+  // Helper: parse various string shapes into our QuestionType enum
+  QuestionType _parseQuestionType(String raw) {
+    final key = raw.toLowerCase().replaceAll(RegExp(r"[^a-z]"), '');
+    switch (key) {
+      case 'multiplechoice':
+      case 'multiple_choice':
+      case 'multiplechoiceoptions':
+        return QuestionType.multipleChoice;
+      case 'truefalse':
+      case 'true_false':
+      case 'truefalsequestion':
+        return QuestionType.trueFalse;
+      case 'shortanswer':
+      case 'short_answer':
+      case 'shortanswerquestion':
+        return QuestionType.shortAnswer;
+      default:
+        return QuestionType.shortAnswer;
+    }
+  }
+
+  // Helper: convert QuestionType to a compact string for grader payloads
+  String _questionTypeToString(QuestionType t) {
+    switch (t) {
+      case QuestionType.multipleChoice:
+        return 'multipleChoice';
+      case QuestionType.trueFalse:
+        return 'trueFalse';
+      case QuestionType.shortAnswer:
+      default:
+        return 'shortAnswer';
     }
   }
 }

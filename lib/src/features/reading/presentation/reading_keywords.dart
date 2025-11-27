@@ -1,5 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:prep_pilot_ai/src/services/ai_agent.dart';
+import 'dart:convert';
 
 enum TestState { initial, loading, test, results }
 
@@ -71,14 +73,83 @@ class _ReadingKeywordsScreenState extends State<ReadingKeywordsScreen> {
     setState(() {
       _testState = TestState.loading;
     });
+    try {
+      final difficultyLabel = _selectedDifficulty.name.toUpperCase();
+      final lengthLabel = switch (_selectedLength) {
+        PassageLength.short => 'short (40-80 words)',
+        PassageLength.medium => 'medium (120-220 words)',
+        PassageLength.long => 'long (300-450 words)',
+      };
 
-    await Future.delayed(const Duration(seconds: 2));
+      final prompt =
+          '''You are an exam item writer for KEYWORD IDENTIFICATION tasks.
+Create a passage and keyword-based tasks.
 
-    _generateMockTest();
+Constraints:
+- CEFR level: $difficultyLabel
+- Passage length: $lengthLabel
+- Return JSON only with this shape:
+{"passage":"...","questions":[{"type":"keyword_selection|multiple_choice|categorize|open_ended","question":"...","options":[...],"targetCount":3}, ...]}
+Do NOT reuse character names from examples (e.g. Sarah, Dr. Chen, Maria). Vary topic each time.
+''';
 
-    setState(() {
-      _testState = TestState.test;
-    });
+      final parsed = await aiJson<Map<String, dynamic>>(
+        userPrompt: prompt,
+        system: 'Return JSON only. No prose. Use double quotes. Vary topics.',
+        temperature: 0.8,
+        maxTokens: 1200,
+      );
+
+      _generatedPassage = (parsed['passage'] as String).trim();
+      _passageWords = _splitIntoWords(_generatedPassage!);
+
+      final qRaw = (parsed['questions'] as List).cast<dynamic>();
+      _generatedQuestions = qRaw.map((e) {
+        final m = Map<String, dynamic>.from(e as Map);
+
+        // Ensure type is string and options is list when present
+        if (m['type'] is! String) m['type'] = m['type'].toString();
+        if (m.containsKey('options') &&
+            m['options'] != null &&
+            m['options'] is! List) {
+          try {
+            m['options'] = List<dynamic>.from(m['options']);
+          } catch (_) {
+            m['options'] = <dynamic>[];
+          }
+        }
+
+        // Ensure numeric fields are ints
+        if (m.containsKey('targetCount') && m['targetCount'] is num) {
+          m['targetCount'] = (m['targetCount'] as num).toInt();
+        }
+
+        return m;
+      }).toList();
+
+      _selectedWordIndices.clear();
+      _answers.clear();
+
+      setState(() {
+        _testState = TestState.test;
+      });
+    } catch (e) {
+      _generateMockTest();
+      if (!mounted) return;
+      setState(() {
+        _testState = TestState.test;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('AI generation failed, using mock test: $e'),
+          backgroundColor: const Color(0xFFF59E0B),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
   }
 
   void _generateMockTest() {
@@ -216,18 +287,110 @@ class _ReadingKeywordsScreenState extends State<ReadingKeywordsScreen> {
   }
 
   void _submitAnswers() {
+    _analyzeKeywordAnswers();
+  }
+
+  Future<void> _analyzeKeywordAnswers() async {
+    if (_generatedPassage == null || _generatedQuestions == null) return;
+
     setState(() {
-      _testState = TestState.results;
+      _testState = TestState.loading;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Analyzing your keyword identification...'),
-        backgroundColor: const Color(0xFFFFA500),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    // Build payload
+    final items = <Map<String, dynamic>>[];
+    for (var i = 0; i < _generatedQuestions!.length; i++) {
+      final q = _generatedQuestions![i];
+      final type = q['type'] as String;
+      final Map<String, dynamic> item = {
+        'index': i,
+        'type': type,
+        'question': q['question'],
+        'options': q['options'] ?? [],
+      };
+
+      if (type == 'keyword_selection') {
+        final selectedWords = _selectedWordIndices
+            .map((idx) => _passageWords![idx])
+            .toList();
+        item['selected_keywords'] = selectedWords;
+        item['targetCount'] = q['targetCount'] ?? null;
+      } else if (type == 'categorize') {
+        final ans = _answers.containsKey(i) ? _answers[i] : <int>{};
+        if (ans is Set) {
+          item['selected_indices'] = ans.toList();
+          item['selected_words'] = (ans as Set<int>)
+              .map((idx) => _passageWords![idx])
+              .toList();
+        }
+      } else if (type == 'multiple_choice') {
+        item['user_answer'] = _answers.containsKey(i) ? _answers[i] : null;
+      } else if (type == 'open_ended') {
+        item['user_answer'] = _answers.containsKey(i) ? _answers[i] : null;
+      }
+
+      items.add(item);
+    }
+
+    final prompt =
+        '''You are an automated grader for KEYWORD IDENTIFICATION tasks.
+Given the passage and submitted answers, evaluate each item. For keyword selection tasks, check whether the selected words correctly represent the main topics or requested categories. Return JSON array only: [{"index":0,"is_correct":true|false,"expected":"comma separated expected keywords","feedback":"brief feedback","score":0|1}, ...]
+
+Passage:\n${_generatedPassage}\n\nData:${jsonEncode(items)}
+''';
+
+    try {
+      final parsed = await aiJson<List<dynamic>>(
+        userPrompt: prompt,
+        system: 'Return JSON only. No prose. Use double quotes.',
+        temperature: 0.0,
+        maxTokens: 1200,
+      );
+
+      final results = parsed
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+
+      for (final r in results) {
+        final idx = (r['index'] as num).toInt();
+        if (idx >= 0 && idx < _generatedQuestions!.length) {
+          _generatedQuestions![idx]['_is_correct'] = r['is_correct'];
+          _generatedQuestions![idx]['_expected'] = r['expected'] ?? '';
+          _generatedQuestions![idx]['_feedback'] = r['feedback'] ?? '';
+          _generatedQuestions![idx]['_score'] =
+              r['score'] ?? (r['is_correct'] == true ? 1 : 0);
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _testState = TestState.results;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Analysis complete!'),
+          backgroundColor: const Color(0xFFFFA500),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _testState = TestState.test);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to analyze answers: $e'),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
   }
 
   void _restartTest() {
@@ -665,6 +828,15 @@ class _ReadingKeywordsScreenState extends State<ReadingKeywordsScreen> {
   }
 
   Widget _buildResultsScreen() {
+    final total = _generatedQuestions?.length ?? 0;
+    final scoreSum =
+        _generatedQuestions?.fold<int>(0, (acc, q) {
+          final s = q['_score'];
+          if (s is num) return acc + s.toInt();
+          return acc + 0;
+        }) ??
+        0;
+
     return Center(
       child: _GlassCard(
         child: Column(
@@ -685,17 +857,85 @@ class _ReadingKeywordsScreenState extends State<ReadingKeywordsScreen> {
                 size: 40,
               ),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'Test Submitted!',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            const SizedBox(height: 16),
+            Text(
+              'Results: $scoreSum / $total',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Your keyword identification is being analyzed...',
-              style: TextStyle(fontSize: 14, color: Color(0xFF5C6470)),
+            Text(
+              'Review the AI feedback and expected keywords below',
+              style: const TextStyle(fontSize: 13, color: Color(0xFF5C6470)),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 300,
+              width: 520,
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: _generatedQuestions?.length ?? 0,
+                separatorBuilder: (_, __) => const Divider(),
+                itemBuilder: (context, idx) {
+                  final q = _generatedQuestions![idx];
+                  final isCorrect = q['_is_correct'] == true;
+                  final expected = q['_expected'] ?? '';
+                  final feedback = q['_feedback'] ?? '';
+
+                  String userAnswer;
+                  final type = q['type'] as String;
+                  if (type == 'keyword_selection') {
+                    final selected = _selectedWordIndices
+                        .map((i) => _passageWords![i])
+                        .toList();
+                    userAnswer = selected.join(', ');
+                  } else if (_answers.containsKey(idx)) {
+                    userAnswer = _answers[idx].toString();
+                  } else {
+                    userAnswer = '—';
+                  }
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: isCorrect
+                          ? const Color(0xFFFFA500)
+                          : const Color(0xFFEF4444),
+                      child: Icon(
+                        isCorrect ? Icons.check : Icons.close,
+                        color: Colors.white,
+                      ),
+                    ),
+                    title: Text(q['question'] ?? ''),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 6),
+                        Text(
+                          'Your answer: $userAnswer',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Expected: $expected',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Feedback: $feedback',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF5C6470),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
             _PrimaryButton(
               label: 'Take Another Test',
               onTap: _restartTest,
