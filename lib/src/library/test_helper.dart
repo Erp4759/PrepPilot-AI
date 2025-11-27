@@ -581,16 +581,12 @@ class TestHelper {
   ${jsonEncode(detailedResults)}
 
   Instructions:
-  1. Provide an overall assessment of the student's performance
-  2. Highlight strengths (what they did well)
-  3. Identify areas for improvement (specific weaknesses based on incorrect answers)
-  4. Give actionable advice and study recommendations
-  5. Provide encouragement and next steps
+  1. Provide an overall assessment of the student's performance and areas for improvement.
 
   Keep the feedback constructive, specific, and encouraging. Focus on helping the student improve.
   Write in a friendly, professional tone suitable for IELTS preparation.
 
-  Return ONLY the feedback text (no JSON, no extra formatting).
+  Return ONLY the feedback text (no JSON, no extra formatting, no bullet points, no bolded text, no titles).
 """;
   }
 
@@ -689,11 +685,7 @@ class TestHelper {
 
     final response = await supabase
         .from('results')
-        .insert({
-          'test_id': testId,
-          'user_id': user.id,
-          'completed_at': DateTime.now().toIso8601String(),
-        })
+        .insert({'test_id': testId, 'user_id': user.id})
         .select('result_id')
         .single();
 
@@ -725,5 +717,209 @@ class TestHelper {
         .from('user_answers')
         .update({'result_id': resultId})
         .inFilter('answer_id', answerIds);
+  }
+
+  // -------------------------------------------------------------
+  // FETCH ALL RESULTS FOR CURRENT USER
+  // -------------------------------------------------------------
+  /// Fetch all test results for the current user
+  /// Returns a list of results with test information
+  static Future<List<Map<String, dynamic>>> fetchAllResults() async {
+    final user = supabase.auth.currentUser;
+
+    if (user == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final response = await supabase
+        .from('results')
+        .select('''
+        result_id,
+        test_id,
+        user_id,
+        score,
+        total_points,
+        created_at,
+        tests (
+          test_id,
+          title,
+          test_type,
+          module_type,
+          difficulty
+        )
+      ''')
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false);
+
+    return (response as List).cast<Map<String, dynamic>>();
+  }
+
+  // -------------------------------------------------------------
+  // FETCH SINGLE RESULT BY ID
+  // -------------------------------------------------------------
+  /// Fetch a specific result by result_id
+  /// Returns result data with test information
+  static Future<Map<String, dynamic>> fetchResultById({
+    required String resultId,
+  }) async {
+    final response = await supabase
+        .from('results')
+        .select('''
+        result_id,
+        test_id,
+        user_id,
+        score,
+        total_points,
+        created_at,
+        tests (
+          test_id,
+          title,
+          text,
+          test_type,
+          module_type,
+          difficulty
+        )
+      ''')
+        .eq('result_id', resultId)
+        .single();
+
+    return response;
+  }
+
+  // -------------------------------------------------------------
+  // FETCH FEEDBACK BY RESULT_ID
+  // -------------------------------------------------------------
+  /// Fetch feedback for a specific result
+  /// Returns feedback data including the feedback text
+  static Future<Map<String, dynamic>> fetchFeedbackByResultId({
+    required String resultId,
+  }) async {
+    final response = await supabase
+        .from('feedback')
+        .select('''
+        feedback_id,
+        result_id,
+        feedback_text,
+        created_at
+      ''')
+        .eq('result_id', resultId)
+        .maybeSingle();
+
+    if (response == null) {
+      throw Exception('No feedback found for result_id=$resultId');
+    }
+
+    return response;
+  }
+
+  // -------------------------------------------------------------
+  // FETCH COMPLETE RESULT WITH FEEDBACK AND USER ANSWERS
+  // -------------------------------------------------------------
+  /// Fetch complete result data including feedback and user answers
+  /// This provides everything needed to display a detailed result view
+  static Future<Map<String, dynamic>> fetchCompleteResult({
+    required String resultId,
+  }) async {
+    // 1. Fetch result with test info
+    final result = await fetchResultById(resultId: resultId);
+
+    // 2. Fetch feedback
+    final feedback = await fetchFeedbackByResultId(resultId: resultId);
+
+    // 3. Fetch user answers with questions
+    final testId = result['tests']['test_id'];
+
+    final questions = await supabase
+        .from('questions')
+        .select('''
+        question_id,
+        question_num,
+        question_text,
+        correct_answer,
+        points
+      ''')
+        .eq('test_id', testId)
+        .order('question_num');
+
+    final questionIds = questions.map((q) => q['question_id']).toList();
+
+    final userAnswers = await supabase
+        .from('user_answers')
+        .select('''
+        answer_id,
+        question_id,
+        user_answer,
+        is_correct,
+        points_earned
+      ''')
+        .eq('result_id', resultId)
+        .inFilter('question_id', questionIds);
+
+    // 4. Merge questions with user answers
+    final detailedAnswers = questions.map((q) {
+      final ua = userAnswers.firstWhere(
+        (u) => u['question_id'] == q['question_id'],
+        orElse: () => {
+          'user_answer': '',
+          'is_correct': false,
+          'points_earned': 0,
+        },
+      );
+      return {
+        'question_num': q['question_num'],
+        'question_text': q['question_text'],
+        'correct_answer': q['correct_answer'],
+        'user_answer': ua['user_answer'],
+        'is_correct': ua['is_correct'],
+        'points_earned': ua['points_earned'],
+        'points_available': q['points'],
+      };
+    }).toList();
+
+    // 5. Return complete result
+    return {
+      'result_id': result['result_id'],
+      'test_id': result['test_id'],
+      'user_id': result['user_id'],
+      'score': result['score'],
+      'total_points': result['total_points'],
+      'created_at': result['created_at'],
+      'test': result['tests'],
+      'feedback_id': feedback['feedback_id'],
+      'feedback_text': feedback['feedback_text'],
+      'feedback_created_at': feedback['created_at'],
+      'detailed_answers': detailedAnswers,
+    };
+  }
+
+  // -------------------------------------------------------------
+  // FETCH RESULTS FOR SPECIFIC TEST
+  // -------------------------------------------------------------
+  /// Fetch all results for a specific test
+  /// Useful for viewing history of attempts on the same test
+  static Future<List<Map<String, dynamic>>> fetchResultsByTestId({
+    required String testId,
+  }) async {
+    final user = supabase.auth.currentUser;
+
+    if (user == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final response = await supabase
+        .from('results')
+        .select('''
+        result_id,
+        test_id,
+        user_id,
+        score,
+        total_points,
+        created_at
+      ''')
+        .eq('test_id', testId)
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false);
+
+    return (response as List).cast<Map<String, dynamic>>();
   }
 }
