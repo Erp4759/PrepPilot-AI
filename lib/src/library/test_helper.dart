@@ -581,16 +581,12 @@ class TestHelper {
   ${jsonEncode(detailedResults)}
 
   Instructions:
-  1. Provide an overall assessment of the student's performance
-  2. Highlight strengths (what they did well)
-  3. Identify areas for improvement (specific weaknesses based on incorrect answers)
-  4. Give actionable advice and study recommendations
-  5. Provide encouragement and next steps
+  1. Provide an overall assessment of the student's performance and areas for improvement.
 
   Keep the feedback constructive, specific, and encouraging. Focus on helping the student improve.
   Write in a friendly, professional tone suitable for IELTS preparation.
 
-  Return ONLY the feedback text (no JSON, no extra formatting).
+  Return ONLY the feedback text (no JSON, no extra formatting, no bullet points, no bolded text, no titles).
 """;
   }
 
