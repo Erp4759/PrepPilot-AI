@@ -4,7 +4,7 @@ import 'package:prep_pilot_ai/src/features/skills/listening/listening_focusing_o
 import 'package:prep_pilot_ai/src/features/skills/listening/listening_note-taking.dart';
 import 'package:prep_pilot_ai/src/features/skills/listening/listening_predicting_answers.dart';
 export 'listening_focusing_on_distractors.dart';
-export 'listening_note-taking.dart' hide TestState, PassageLength, Difficulty;
+export 'listening_note-taking.dart';
 export 'listening_predicting_answers.dart';
 
 class ListeningHomeScreen extends StatelessWidget {

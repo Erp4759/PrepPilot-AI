@@ -16,23 +16,21 @@ class ListeningPredictingAnswersScreen extends StatefulWidget {
 class _ListeningPredictingAnswersScreenState
     extends State<ListeningPredictingAnswersScreen> {
   TestState _testState = TestState.initial;
-  PassageLength _selectedLength = PassageLength.medium;
   Difficulty _selectedDifficulty = Difficulty.b1;
 
   // Test data
-  String? _originalPassage;
   int? _totalSeconds = 0;
   int? _remainingSeconds = 0;
   bool _isPlaying = false;
   Timer? _timer;
-
-  // User answer
-  late TextEditingController _paraphraseController;
+  
+  List<_Question> _questions = [];
+  int _currentQuestionIndex = 0;
+  final Map<int, dynamic> _userAnswers = {}; // Index -> Answer (String or int)
 
   @override
   void initState() {
     super.initState();
-    _paraphraseController = TextEditingController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showSettingsDialog();
     });
@@ -41,7 +39,6 @@ class _ListeningPredictingAnswersScreenState
   @override
   void dispose() {
     _timer?.cancel();
-    _paraphraseController.dispose();
     super.dispose();
   }
 
@@ -50,11 +47,9 @@ class _ListeningPredictingAnswersScreenState
       context: context,
       barrierDismissible: false,
       builder: (context) => _SettingsDialog(
-        selectedLength: _selectedLength,
         selectedDifficulty: _selectedDifficulty,
-        onStart: (length, difficulty) {
+        onStart: (difficulty) {
           setState(() {
-            _selectedLength = length;
             _selectedDifficulty = difficulty;
           });
           Navigator.of(context).pop();
@@ -84,11 +79,33 @@ class _ListeningPredictingAnswersScreenState
   }
 
   void _generateMockTest() {
-    _originalPassage =
-        'Climate change is one of the most pressing issues facing our planet today. Rising global temperatures are causing melting ice caps, rising sea levels, and extreme weather patterns. Scientists agree that human activities, particularly the burning of fossil fuels, are the primary cause of this phenomenon. To combat this crisis, we need to transition to renewable energy sources, reduce carbon emissions, and implement sustainable practices in all aspects of our lives.';
+    // Mock data for Predicting Answers
+    // Q1: Prediction (TextField), Q2: Multiple Choice
+    _questions = [
+      _Question(
+        id: 1,
+        type: _QuestionType.prediction,
+        prompt: 'Predict what the speaker will say next about the climate policy.',
+        correctAnswer: 'The government will introduce new carbon taxes.', // Mock answer for checking
+      ),
+      _Question(
+        id: 2,
+        type: _QuestionType.multipleChoice,
+        prompt: 'What is the main reason for the policy change?',
+        options: [
+          'To reduce budget deficit',
+          'To meet international agreements',
+          'To encourage local industry',
+          'To lower energy prices'
+        ],
+        correctAnswer: 1, // Index of correct option
+      ),
+    ];
 
-    _totalSeconds = 300; // 5분
+    _totalSeconds = 300; // 5 minutes
     _remainingSeconds = _totalSeconds;
+    _currentQuestionIndex = 0;
+    _userAnswers.clear();
   }
 
   void _startTimer() {
@@ -99,7 +116,7 @@ class _ListeningPredictingAnswersScreenState
           _remainingSeconds = _remainingSeconds! - 1;
         } else {
           _timer?.cancel();
-          _submitAnswer();
+          _submitTest();
         }
       });
     });
@@ -110,7 +127,7 @@ class _ListeningPredictingAnswersScreenState
       _isPlaying = true;
     });
 
-    // 실제로는 여기서 LLM으로 생성된 오디오 파일을 재생
+    // Mock audio playback
     await Future.delayed(const Duration(seconds: 4));
 
     setState(() {
@@ -118,26 +135,18 @@ class _ListeningPredictingAnswersScreenState
     });
   }
 
-  void _submitAnswer() {
+  void _submitTest() {
     _timer?.cancel();
     setState(() {
       _testState = TestState.results;
     });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Your paraphrase has been submitted for review'),
-        backgroundColor: const Color(0xFF10B981),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
   }
 
   void _restartTest() {
     setState(() {
       _testState = TestState.initial;
-      _paraphraseController.clear();
+      _userAnswers.clear();
+      _currentQuestionIndex = 0;
     });
     _showSettingsDialog();
   }
@@ -197,19 +206,12 @@ class _ListeningPredictingAnswersScreenState
             ),
             const SizedBox(height: 8),
             Text(
-              'AI is generating a listening passage',
+              'AI is generating questions',
               style: TextStyle(
                 fontSize: 14,
                 color: const Color(0xFF5C6470).withOpacity(0.8),
               ),
             ),
-            const SizedBox(height: 20),
-            _LoadingProgressIndicator(
-                label: 'Setting difficulty...', value: 0.33),
-            const SizedBox(height: 12),
-            _LoadingProgressIndicator(label: 'Generating audio...', value: 0.66),
-            const SizedBox(height: 12),
-            _LoadingProgressIndicator(label: 'Preparing exercise...', value: 1.0),
           ],
         ),
       ),
@@ -231,8 +233,7 @@ class _ListeningPredictingAnswersScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 16),
-                // 타이머
+                // Timer
                 _GlassCard(
                   child: Row(
                     children: [
@@ -243,14 +244,8 @@ class _ListeningPredictingAnswersScreenState
                           shape: BoxShape.circle,
                           gradient: LinearGradient(
                             colors: isLowTime
-                                ? [
-                                    const Color(0xFFEF4444),
-                                    const Color(0xFFDC2626)
-                                  ]
-                                : [
-                                    const Color(0xFF6366F1),
-                                    const Color(0xFF8B5CF6)
-                                  ],
+                                ? [const Color(0xFFEF4444), const Color(0xFFDC2626)]
+                                : [const Color(0xFF6366F1), const Color(0xFF8B5CF6)],
                           ),
                         ),
                         child: Center(
@@ -297,14 +292,15 @@ class _ListeningPredictingAnswersScreenState
                     ],
                   ),
                 ),
-                const SizedBox(height: 40),
-                // 큰 스피커 아이콘
+                const SizedBox(height: 32),
+                
+                // Audio Player
                 Center(
                   child: GestureDetector(
                     onTap: _isPlaying ? null : _playAudio,
                     child: Container(
-                      width: 120,
-                      height: 120,
+                      width: 100,
+                      height: 100,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: const LinearGradient(
@@ -313,24 +309,24 @@ class _ListeningPredictingAnswersScreenState
                         boxShadow: [
                           BoxShadow(
                             color: const Color(0xFF6366F1).withOpacity(0.4),
-                            blurRadius: 30,
-                            offset: const Offset(0, 10),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
                           ),
                         ],
                       ),
                       child: Center(
                         child: _isPlaying
-                            ? SizedBox(
-                                width: 60,
-                                height: 60,
+                            ? const SizedBox(
+                                width: 50,
+                                height: 50,
                                 child: CircularProgressIndicator(
                                   color: Colors.white,
                                   strokeWidth: 3,
                                 ),
                               )
-                            : Icon(
+                            : const Icon(
                                 Icons.volume_up_rounded,
-                                size: 60,
+                                size: 50,
                                 color: Colors.white,
                               ),
                       ),
@@ -348,121 +344,48 @@ class _ListeningPredictingAnswersScreenState
                     ),
                   ),
                 ),
-                const SizedBox(height: 48),
-                // 지시사항
-                const SizedBox(height: 48),
-                // 지시사항
-                _GlassCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Paraphrase the passage',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Listen to the audio and rewrite the main points in your own words. Focus on conveying the key ideas, not copying the exact text.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: const Color(0xFF5C6470).withOpacity(0.8),
-                          height: 1.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                const SizedBox(height: 32),
+
+                // Question Area
+                _buildQuestionCard(),
+                
                 const SizedBox(height: 24),
-                // 원문 텍스트 (참고용) - 제거됨
-                const SizedBox(height: 24),
-                // 입력 필드
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Your Paraphrase',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _paraphraseController,
-                      maxLines: 8,
-                      decoration: InputDecoration(
-                        hintText:
-                            'Write your paraphrase here. Aim to express the main ideas in your own words...',
-                        hintStyle: TextStyle(
-                          color: const Color(0xFF5C6470).withOpacity(0.5),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white.withOpacity(0.6),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(
-                            color: Colors.black.withOpacity(0.1),
-                            width: 1.5,
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(
-                            color: Colors.black.withOpacity(0.08),
-                            width: 1.5,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF6366F1),
-                            width: 2,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
-                      ),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF1E293B),
-                        height: 1.6,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                // 단어 수 표시
+                
+                // Navigation Buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Word count: ${_paraphraseController.text.split(' ').where((w) => w.isNotEmpty).length}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: const Color(0xFF5C6470).withOpacity(0.7),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      'Character count: ${_paraphraseController.text.length}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: const Color(0xFF5C6470).withOpacity(0.7),
-                        fontWeight: FontWeight.w600,
-                      ),
+                    if (_currentQuestionIndex > 0)
+                      _SecondaryButton(
+                        label: 'Previous',
+                        onTap: () {
+                          setState(() {
+                            _currentQuestionIndex--;
+                          });
+                        },
+                      )
+                    else
+                      const SizedBox(),
+                    
+                    _PrimaryButton(
+                      label: _currentQuestionIndex < _questions.length - 1
+                          ? 'Next'
+                          : 'Submit',
+                      onTap: () {
+                        if (_currentQuestionIndex < _questions.length - 1) {
+                          setState(() {
+                            _currentQuestionIndex++;
+                          });
+                        } else {
+                          _submitTest();
+                        }
+                      },
+                      icon: _currentQuestionIndex < _questions.length - 1
+                          ? Icons.arrow_forward
+                          : Icons.check,
                     ),
                   ],
                 ),
-                const SizedBox(height: 32),
-                // 제출 버튼
-                _buildSubmitButton(),
-                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -471,61 +394,205 @@ class _ListeningPredictingAnswersScreenState
     );
   }
 
-  Widget _buildSubmitButton() {
-    final isAnswered = _paraphraseController.text.trim().isNotEmpty;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: isAnswered ? _submitAnswer : null,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: isAnswered
-                ? const LinearGradient(
-                    colors: [Color(0xFF10B981), Color(0xFF059669)],
-                  )
-                : const LinearGradient(
-                    colors: [Color(0xFFCBD5E1), Color(0xFFE2E8F0)],
-                  ),
-            boxShadow: isAnswered
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF10B981).withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildQuestionCard() {
+    final question = _questions[_currentQuestionIndex];
+    
+    return _GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Icon(
-                Icons.send_rounded,
-                color: isAnswered ? Colors.white : const Color(0xFF94A3B8),
-                size: 24,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Question ${_currentQuestionIndex + 1} of ${_questions.length}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF6366F1),
+                  ),
+                ),
               ),
-              const SizedBox(width: 12),
-              Text(
-                'Submit Paraphrase',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: isAnswered ? Colors.white : const Color(0xFF94A3B8),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  question.type == _QuestionType.prediction
+                      ? 'Prediction'
+                      : 'Multiple Choice',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF10B981),
+                  ),
                 ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 16),
+          Text(
+            question.prompt,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1E293B),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 24),
+          if (question.type == _QuestionType.prediction)
+            _buildPredictionInput(question)
+          else
+            _buildMultipleChoiceOptions(question),
+        ],
       ),
     );
   }
 
+  Widget _buildPredictionInput(_Question question) {
+    return TextField(
+      onChanged: (value) {
+        _userAnswers[question.id] = value;
+      },
+      controller: TextEditingController(text: _userAnswers[question.id] as String?)
+        ..selection = TextSelection.fromPosition(
+          TextPosition(offset: (_userAnswers[question.id] as String? ?? '').length),
+        ),
+      maxLines: 4,
+      decoration: InputDecoration(
+        hintText: 'Type your prediction here...',
+        hintStyle: TextStyle(
+          color: const Color(0xFF5C6470).withOpacity(0.5),
+        ),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.6),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: Colors.black.withOpacity(0.1),
+            width: 1.5,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: Colors.black.withOpacity(0.08),
+            width: 1.5,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(
+            color: Color(0xFF6366F1),
+            width: 2,
+          ),
+        ),
+        contentPadding: const EdgeInsets.all(16),
+      ),
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: Color(0xFF1E293B),
+        height: 1.6,
+      ),
+    );
+  }
+
+  Widget _buildMultipleChoiceOptions(_Question question) {
+    return Column(
+      children: List.generate(question.options!.length, (index) {
+        final isSelected = _userAnswers[question.id] == index;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  _userAnswers[question.id] = index;
+                });
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFF6366F1).withOpacity(0.1)
+                      : Colors.white.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected
+                        ? const Color(0xFF6366F1)
+                        : Colors.black.withOpacity(0.08),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected
+                              ? const Color(0xFF6366F1)
+                              : const Color(0xFF94A3B8),
+                          width: 2,
+                        ),
+                        color: isSelected ? const Color(0xFF6366F1) : null,
+                      ),
+                      child: isSelected
+                          ? const Icon(
+                              Icons.check,
+                              size: 16,
+                              color: Colors.white,
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        question.options![index],
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          color: isSelected
+                              ? const Color(0xFF6366F1)
+                              : const Color(0xFF1E293B),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
   Widget _buildResultsScreen() {
-    final wordCount =
-        _paraphraseController.text.split(' ').where((w) => w.isNotEmpty).length;
+    int correctCount = 0;
+    for (var question in _questions) {
+      if (question.type == _QuestionType.multipleChoice) {
+        if (_userAnswers[question.id] == question.correctAnswer) {
+          correctCount++;
+        }
+      }
+      // For prediction, we can't auto-grade easily without LLM, so we'll just count it as done for now
+      // or maybe just show the user's answer vs expected.
+    }
 
     return Center(
       child: _GlassCard(
@@ -549,7 +616,7 @@ class _ListeningPredictingAnswersScreenState
             ),
             const SizedBox(height: 24),
             const Text(
-              'Submitted!',
+              'Test Completed!',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
@@ -558,73 +625,14 @@ class _ListeningPredictingAnswersScreenState
             ),
             const SizedBox(height: 8),
             Text(
-              'Your paraphrase is being reviewed',
+              'You have finished the predicting answers exercise.',
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
                 color: const Color(0xFF5C6470).withOpacity(0.8),
               ),
             ),
-            const SizedBox(height: 24),
-            // 통계
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0xFF10B981).withOpacity(0.2),
-                  width: 1.5,
-                ),
-              ),
-              child: Column(
-                children: [
-                  _StatRow(
-                    label: 'Word Count',
-                    value: '$wordCount words',
-                  ),
-                  const SizedBox(height: 12),
-                  _StatRow(
-                    label: 'Character Count',
-                    value: '${_paraphraseController.text.length} characters',
-                  ),
-                  const SizedBox(height: 12),
-                  _StatRow(
-                    label: 'Original Passage',
-                    value: '${_originalPassage!.split(' ').length} words',
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'What you submitted:',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.black.withOpacity(0.08),
-                  width: 1.5,
-                ),
-              ),
-              child: Text(
-                _paraphraseController.text,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF5C6470),
-                  height: 1.6,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             _PrimaryButton(
               label: 'Try Another',
               onTap: _restartTest,
@@ -658,40 +666,30 @@ class _ListeningPredictingAnswersScreenState
   }
 }
 
-class _StatRow extends StatelessWidget {
-  const _StatRow({required this.label, required this.value});
+// ============================================================================
+// MODELS & ENUMS
+// ============================================================================
 
-  final String label;
-  final String value;
+enum _QuestionType { prediction, multipleChoice }
 
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF5C6470),
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF10B981),
-          ),
-        ),
-      ],
-    );
-  }
+class _Question {
+  final int id;
+  final _QuestionType type;
+  final String prompt;
+  final List<String>? options;
+  final dynamic correctAnswer; // String for prediction, int index for multiple choice
+
+  _Question({
+    required this.id,
+    required this.type,
+    required this.prompt,
+    this.options,
+    required this.correctAnswer,
+  });
 }
 
 // ============================================================================
-// CUSTOM WIDGETS
+// CUSTOM WIDGETS (Reused from Distractors Screen style)
 // ============================================================================
 
 class _GradientBackground extends StatelessWidget {
@@ -854,6 +852,45 @@ class _PrimaryButton extends StatelessWidget {
   }
 }
 
+class _SecondaryButton extends StatelessWidget {
+  const _SecondaryButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: Colors.white.withOpacity(0.6),
+            border: Border.all(
+              color: const Color(0xFF6366F1).withOpacity(0.3),
+              width: 1.5,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF6366F1),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SmallBackButton extends StatelessWidget {
   const _SmallBackButton({this.onTap});
 
@@ -890,51 +927,15 @@ class _SmallBackButton extends StatelessWidget {
   }
 }
 
-class _LoadingProgressIndicator extends StatelessWidget {
-  const _LoadingProgressIndicator({required this.label, required this.value});
-
-  final String label;
-  final double value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Color(0xFF5C6470),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(
-            value: value,
-            backgroundColor: const Color(0xFF6366F1).withOpacity(0.15),
-            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
-            minHeight: 6,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _SettingsDialog extends StatefulWidget {
   const _SettingsDialog({
-    required this.selectedLength,
     required this.selectedDifficulty,
     required this.onStart,
     required this.onCancel,
   });
 
-  final PassageLength selectedLength;
   final Difficulty selectedDifficulty;
-  final Function(PassageLength, Difficulty) onStart;
+  final Function(Difficulty) onStart;
   final VoidCallback onCancel;
 
   @override
@@ -942,13 +943,11 @@ class _SettingsDialog extends StatefulWidget {
 }
 
 class _SettingsDialogState extends State<_SettingsDialog> {
-  late PassageLength _length;
   late Difficulty _difficulty;
 
   @override
   void initState() {
     super.initState();
-    _length = widget.selectedLength;
     _difficulty = widget.selectedDifficulty;
   }
 
@@ -1004,7 +1003,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Start Paraphrase?',
+                            'Start Prediction?',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w800,
@@ -1036,38 +1035,32 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                     _SettingChip(
                       label: 'A1',
                       isSelected: _difficulty == Difficulty.a1,
-                      onTap: () =>
-                          setState(() => _difficulty = Difficulty.a1),
+                      onTap: () => setState(() => _difficulty = Difficulty.a1),
                     ),
                     _SettingChip(
                       label: 'A2',
                       isSelected: _difficulty == Difficulty.a2,
-                      onTap: () =>
-                          setState(() => _difficulty = Difficulty.a2),
+                      onTap: () => setState(() => _difficulty = Difficulty.a2),
                     ),
                     _SettingChip(
                       label: 'B1',
                       isSelected: _difficulty == Difficulty.b1,
-                      onTap: () =>
-                          setState(() => _difficulty = Difficulty.b1),
+                      onTap: () => setState(() => _difficulty = Difficulty.b1),
                     ),
                     _SettingChip(
                       label: 'B2',
                       isSelected: _difficulty == Difficulty.b2,
-                      onTap: () =>
-                          setState(() => _difficulty = Difficulty.b2),
+                      onTap: () => setState(() => _difficulty = Difficulty.b2),
                     ),
                     _SettingChip(
                       label: 'C1',
                       isSelected: _difficulty == Difficulty.c1,
-                      onTap: () =>
-                          setState(() => _difficulty = Difficulty.c1),
+                      onTap: () => setState(() => _difficulty = Difficulty.c1),
                     ),
                     _SettingChip(
                       label: 'C2',
                       isSelected: _difficulty == Difficulty.c2,
-                      onTap: () =>
-                          setState(() => _difficulty = Difficulty.c2),
+                      onTap: () => setState(() => _difficulty = Difficulty.c2),
                     ),
                   ],
                 ),
@@ -1076,8 +1069,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                   label: 'Adaptive (Based on your results)',
                   icon: Icons.auto_awesome,
                   isSelected: _difficulty == Difficulty.adaptive,
-                  onTap: () =>
-                      setState(() => _difficulty = Difficulty.adaptive),
+                  onTap: () => setState(() => _difficulty = Difficulty.adaptive),
                   fullWidth: true,
                 ),
                 const SizedBox(height: 32),
@@ -1094,7 +1086,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                       flex: 2,
                       child: _PrimaryButton(
                         label: 'Start Test',
-                        onTap: () => widget.onStart(_length, _difficulty),
+                        onTap: () => widget.onStart(_difficulty),
                         icon: Icons.play_arrow,
                       ),
                     ),
@@ -1169,45 +1161,6 @@ class _SettingChip extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SecondaryButton extends StatelessWidget {
-  const _SecondaryButton({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            color: Colors.white.withOpacity(0.6),
-            border: Border.all(
-              color: const Color(0xFF6366F1).withOpacity(0.3),
-              width: 1.5,
-            ),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF6366F1),
-              ),
-            ),
           ),
         ),
       ),

@@ -34,8 +34,12 @@ class PrepPilotApp extends StatelessWidget {
         '/skills/listening/listening_focusing_on_disctractors.dart': (_) => 
             const ListeningFocusingOnDistractorsScreen(),
         '/skills/writing': (_) => const WritingHomeScreen(),
-        '/skills/writing/writing_essay_structures.dart': (_) => 
+        WritingEssayStructuresScreen.routeName: (_) => 
             const WritingEssayStructuresScreen(),
+        WritingLinkingDevicesScreen.routeName: (_) => 
+            const WritingLinkingDevicesScreen(),
+        WritingParaphrasingScreen.routeName: (_) => 
+            const WritingParaphrasingScreen(),
         '/profile': (_) => const ProfileScreen(),
         '/profile/edit': (_) => const EditProfileScreen(),
         // '/about': (_) => const AboutScreen(),

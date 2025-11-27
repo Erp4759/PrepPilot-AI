@@ -129,10 +129,8 @@ class WritingHomeScreen extends StatelessWidget {
                             Color(0xFF06B6D4),
                           ],
                           onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const WritingParaphrasingScreen(),
-                              ),
+                            Navigator.of(context).pushNamed(
+                              WritingLinkingDevicesScreen.routeName,
                             );
                           },
                         ),
@@ -150,11 +148,8 @@ class WritingHomeScreen extends StatelessWidget {
                             Color(0xFF14B8A6),
                           ],
                           onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const WritingLinkingDevicesScreen(),
-                              ),
+                            Navigator.of(context).pushNamed(
+                              WritingParaphrasingScreen.routeName,
                             );
                           },
                         ),
