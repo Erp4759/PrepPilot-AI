@@ -1,11 +1,64 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'get_profile.dart';
+import '../../services/supabase.dart';
+import '../profile_setting/profile_notifier.dart';
 
-class ProfileInfoScreen extends StatelessWidget {
+class ProfileInfoScreen extends StatefulWidget {
   const ProfileInfoScreen({Key? key}) : super(key: key);
 
   @override
+  State<ProfileInfoScreen> createState() => _ProfileInfoScreenState();
+}
+
+class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
+  bool _loading = true;
+  UserProfile? _profile;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+    // reload profile when external changes occur (e.g., email updated)
+    profileRefreshCounter.addListener(_onProfileRefreshRequested);
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final authUser = supabase.auth.currentUser;
+      if (authUser == null) {
+        setState(() {
+          _loading = false;
+        });
+        return;
+      }
+      final p = await fetchUserProfile(authUser.id);
+      setState(() {
+        _profile = p;
+        _loading = false;
+      });
+    } catch (_) {
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
+  void _onProfileRefreshRequested() {
+    // when notifier increments, reload profile
+    _loadProfile();
+  }
+
+
+  @override
   Widget build(BuildContext context) {
+    final name = _profile?.username ?? '';
+    final email = _profile?.email ?? '';
+    final reading = _profile?.readingDifficulty ?? 0;
+    final speaking = _profile?.speakingDifficulty ?? 0;
+    final listening = _profile?.listeningDifficulty ?? 0;
+    final writing = _profile?.scanningDifficulty ?? 0;
+
     return Scaffold(
       extendBody: true,
       body: Stack(
@@ -62,43 +115,15 @@ class ProfileInfoScreen extends StatelessWidget {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Profile Image
-                            Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xD282CEFF), Color(0xD2B78DFF)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF82CEFF).withOpacity(0.3),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.person_rounded,
-                                color: Colors.white,
-                                size: 40,
-                              ),
-                            ),
-                            const SizedBox(width: 20),
                             // Info Section
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _InfoRow(label: 'Name', value: 'Alex Morgan'),
-                                  const SizedBox(height: 12),
-                                  _InfoRow(label: 'Email', value: 'alex.morgan@email.com'),
-                                  const SizedBox(height: 12),
-                                  _InfoRow(label: 'ID', value: 'alex_morgan'),
-                                ],
+                                  _InfoRow(label: 'Name', value: _loading ? 'Loading...' : (name.isNotEmpty ? name : '-')),
+                                  const SizedBox(height: 18),
+                                  _InfoRow(label: 'Email', value: _loading ? 'Loading...' : (email.isNotEmpty ? email : '-')),
+                                ]
                               ),
                             ),
                           ],
@@ -125,7 +150,7 @@ class ProfileInfoScreen extends StatelessWidget {
                         // Reading
                         _SkillCard(
                           title: 'Reading',
-                          level: 'Hard',
+                          level: _loading ? '' : reading.toString(),
                           painPoints: [
                             'Difficulty with complex academic texts',
                             'Slow reading speed',
@@ -136,7 +161,7 @@ class ProfileInfoScreen extends StatelessWidget {
                         // Speaking
                         _SkillCard(
                           title: 'Speaking',
-                          level: 'Easy',
+                          level: _loading ? '' : speaking.toString(),
                           painPoints: [
                             'Occasional pronunciation mistakes',
                             'Hesitation in formal situations',
@@ -146,7 +171,7 @@ class ProfileInfoScreen extends StatelessWidget {
                         // Listening
                         _SkillCard(
                           title: 'Listening',
-                          level: 'Easy',
+                          level: _loading ? '' : listening.toString(),
                           painPoints: [
                             'Difficulty with fast speech',
                             'Trouble with various accents',
@@ -157,7 +182,7 @@ class ProfileInfoScreen extends StatelessWidget {
                         // Writing
                         _SkillCard(
                           title: 'Writing',
-                          level: 'Medium',
+                          level: _loading ? '' : writing.toString(),
                           painPoints: [
                             'Grammar mistakes in complex sentences',
                             'Academic writing style needs improvement',
@@ -173,6 +198,12 @@ class ProfileInfoScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    profileRefreshCounter.removeListener(_onProfileRefreshRequested);
+    super.dispose();
   }
 }
 
