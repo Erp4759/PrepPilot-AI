@@ -1,8 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:prep_pilot_ai/src/features/skills/writing/writing_essay_structures.dart';
+import 'package:prep_pilot_ai/src/features/skills/writing/writing_coherence_and_cohesion.dart';
 import 'package:prep_pilot_ai/src/features/skills/writing/writing_paraphrasing.dart';
-import 'package:prep_pilot_ai/src/features/skills/writing/writing_linking_devices.dart';
+import 'package:prep_pilot_ai/src/features/skills/writing/writing_task_response.dart';
 
 class WritingHomeScreen extends StatelessWidget {
   const WritingHomeScreen({super.key});
@@ -97,11 +97,11 @@ class WritingHomeScreen extends StatelessWidget {
 
                         // Skills grid
                         _SkillCard(
-                          title: 'Essay structures',
-                          subtitle: 'Get the main idea quickly',
+                          title: 'Coherence and Cohesion',
+                          subtitle: 'Organize your thoughts',
                           description:
-                              'Learn to read quickly to understand the general meaning and main ideas without focusing on details',
-                          icon: Icons.flash_on,
+                              'Master paragraphing and linking devices to ensure your writing flows logically and clearly',
+                          icon: Icons.link,
                           gradient: const [
                             Color(0xFF6366F1),
                             Color(0xFF8B5CF6),
@@ -110,7 +110,7 @@ class WritingHomeScreen extends StatelessWidget {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (context) =>
-                                    const WritingEssayStructuresScreen(),
+                                    const WritingCoherenceAndCohesionScreen(),
                               ),
                             );
                           },
@@ -119,18 +119,18 @@ class WritingHomeScreen extends StatelessWidget {
                         const SizedBox(height: 14),
 
                         _SkillCard(
-                          title: 'Linking devices',
-                          subtitle: 'Find specific information',
+                          title: 'Task Response',
+                          subtitle: 'Answer the prompt',
                           description:
-                              'Practice looking for specific facts, numbers, names, or dates by moving your eyes quickly across the text',
-                          icon: Icons.search,
+                              'Learn to fully address all parts of the task with relevant ideas and supporting examples',
+                          icon: Icons.assignment_turned_in,
                           gradient: const [
                             Color(0xFF2C8FFF),
                             Color(0xFF06B6D4),
                           ],
                           onTap: () {
                             Navigator.of(context).pushNamed(
-                              WritingLinkingDevicesScreen.routeName,
+                              WritingTaskResponseScreen.routeName,
                             );
                           },
                         ),
@@ -139,10 +139,10 @@ class WritingHomeScreen extends StatelessWidget {
 
                         _SkillCard(
                           title: 'Paraphrasing',
-                          subtitle: 'Read between the lines',
+                          subtitle: 'Expand your vocabulary',
                           description:
-                              'Develop the ability to understand implied meanings and draw conclusions from context clues',
-                          icon: Icons.psychology,
+                              'Practice rewriting sentences to demonstrate lexical resource without changing the original meaning',
+                          icon: Icons.autorenew,
                           gradient: const [
                             Color(0xFF10B981),
                             Color(0xFF14B8A6),
@@ -154,64 +154,6 @@ class WritingHomeScreen extends StatelessWidget {
                           },
                         ),
                         const SizedBox(height: 24),
-
-                        // Progress overview
-                        _GlassCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF82CEFF),
-                                          Color(0xFFB78DFF),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Icon(
-                                      Icons.analytics_outlined,
-                                      color: Colors.white,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  const Text(
-                                    'Your Progress',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              _ProgressItem(
-                                skill: 'Essay structures',
-                                progress: 0.0,
-                                color: const Color(0xFF6366F1),
-                              ),
-                              const SizedBox(height: 10),
-                              _ProgressItem(
-                                skill: 'Linking devices',
-                                progress: 0.0,
-                                color: const Color(0xFF2C8FFF),
-                              ),
-                              const SizedBox(height: 10),
-                              _ProgressItem(
-                                skill: 'Paraphrasing',
-                                progress: 0.0,
-                                color: const Color(0xFF10B981),
-                              ),                              
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
 
                         // Tips section
                         _GlassCard(
@@ -249,19 +191,19 @@ class WritingHomeScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 16),
                               _TipItem(
-                                '📚 Practice each skill regularly for improvement',
+                                '📝 Always create an outline before you start writing',
                               ),
                               const SizedBox(height: 8),
                               _TipItem(
-                                '⏱️ Time yourself to build speed and efficiency',
+                                '⏱️ Manage your time: Plan, Write, and Review',
                               ),
                               const SizedBox(height: 8),
                               _TipItem(
-                                '🎯 Focus on understanding, not just reading',
+                                '🔍 Check for subject-verb agreement and tense consistency',
                               ),
                               const SizedBox(height: 8),
                               _TipItem(
-                                '✨ Combine skills for comprehensive reading',
+                                '✨ Use a mix of simple and complex sentences',
                               ),
                             ],
                           ),
@@ -290,17 +232,6 @@ class WritingHomeScreen extends StatelessWidget {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature coming soon!'),
-        backgroundColor: const Color(0xFF2C8FFF),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
