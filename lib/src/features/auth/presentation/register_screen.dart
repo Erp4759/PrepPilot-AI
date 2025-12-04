@@ -65,56 +65,69 @@ class _RegisterScreenState extends State<RegisterScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Create account'),
+        // Assuming you removed the title as requested earlier:
+        // title: const Text('Create account'),
       ),
       body: Stack(
         fit: StackFit.expand,
         children: [
           const _AuthBackdrop(),
           SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-            child: GlassFormCard(
-              title: 'Create your account',
-              footer: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Already have an account?'),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () =>
-                        Navigator.of(context).pushReplacementNamed('/login'),
-                    child: const Text('Sign in'),
-                  ),
-                ],
+            // Set the constraints to the full height of the viewport.
+            // This is essential for the Center widget to align the form vertically.
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height,
+                minWidth: MediaQuery.of(context).size.width,
               ),
-              children: [
-                GlassTextField(
-                  label: 'Name',
-                  keyboardType: TextInputType.name,
-                  controller: _nameController,
+              child: Center(
+                // The form card is now centered both horizontally and vertically.
+                // The GlassFormCard itself contains the maxWidth constraint.
+                child: GlassFormCard(
+                  title: 'Create your account',
+                  footer: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('Already have an account?'),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pushReplacementNamed('/login'),
+                        child: const Text('Sign in'),
+                      ),
+                    ],
+                  ),
+                  children: [
+                    GlassTextField(
+                      label: 'Name',
+                      keyboardType: TextInputType.name,
+                      controller: _nameController,
+                    ),
+                    const SizedBox(height: 12),
+                    GlassTextField(
+                      label: 'Email',
+                      keyboardType: TextInputType.emailAddress,
+                      controller: _emailController,
+                    ),
+                    const SizedBox(height: 12),
+                    GlassTextField(
+                      label: 'Password',
+                      obscure: true,
+                      controller: _passwordController,
+                    ),
+                    const SizedBox(height: 16),
+                    GlassPrimaryButton(
+                      label: _isLoading ? 'Creating...' : 'Sign up',
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              _register().then((_) {});
+                            },
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                GlassTextField(
-                  label: 'Email',
-                  keyboardType: TextInputType.emailAddress,
-                  controller: _emailController,
-                ),
-                const SizedBox(height: 12),
-                GlassTextField(
-                  label: 'Password',
-                  obscure: true,
-                  controller: _passwordController,
-                ),
-                const SizedBox(height: 16),
-                GlassPrimaryButton(
-                  label: _isLoading ? 'Creating...' : 'Sign up',
-                  onPressed: _isLoading
-                      ? null
-                      : () {
-                          _register().then((_) {});
-                        },
-                ),
-              ],
+              ),
             ),
           ),
         ],

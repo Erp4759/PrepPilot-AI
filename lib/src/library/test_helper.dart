@@ -133,7 +133,7 @@ class TestHelper {
     final user = supabase.auth.currentUser;
 
     if (user == null) {
-      throw Exception('User not authenticated');
+      throw Exception('Please log in to create a test.');
     }
 
     final testData = {
@@ -680,7 +680,7 @@ class TestHelper {
     final user = supabase.auth.currentUser;
 
     if (user == null) {
-      throw Exception('User not authenticated');
+      throw Exception('Please log in to create a test.');
     }
 
     final response = await supabase
@@ -728,7 +728,7 @@ class TestHelper {
     final user = supabase.auth.currentUser;
 
     if (user == null) {
-      throw Exception('User not authenticated');
+      throw Exception('Please log in to view results.');
     }
 
     final response = await supabase
@@ -903,7 +903,7 @@ class TestHelper {
     final user = supabase.auth.currentUser;
 
     if (user == null) {
-      throw Exception('User not authenticated');
+      throw Exception('Please log in to view results.');
     }
 
     final response = await supabase

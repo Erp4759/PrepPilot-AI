@@ -1,6 +1,10 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import '../../services/supabase.dart';
+import '../profile_setting/profile_notifier.dart';
+import 'get_profile.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class EditProfileScreen extends StatelessWidget {
   const EditProfileScreen({Key? key}) : super(key: key);
@@ -25,12 +29,11 @@ class EditProfileScreen extends StatelessWidget {
           ),
 
           SafeArea(
-            child: SingleChildScrollView(
+            child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 상단: back 버튼 + 제목
                   Row(
                     children: const [
                       _SmallBackButton(),
@@ -47,134 +50,56 @@ class EditProfileScreen extends StatelessWidget {
                     ],
                   ),
 
-                  const SizedBox(height: 20),
-
-                  // 프로필 이미지와 변경 버튼
-                  Center(
-                    child: Column(
-                      children: [
-                        Stack(
-                          children: [
-                            // 프로필 이미지
-                            Container(
-                              width: 120,
-                              height: 120,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xD282CEFF), Color(0xD2B78DFF)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 480,
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                  // Open the change email dialog. Keep the Edit screen open
+                                  // even if the profile email was updated.
+                                  await _showChangeEmailDialog(context);
+                                },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _accent,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF82CEFF).withOpacity(0.3),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
+                                textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                                elevation: 6,
                               ),
-                              child: const Icon(
-                                Icons.person_rounded,
-                                color: Colors.white,
-                                size: 60,
-                              ),
+                              child: const Text('Change email'),
                             ),
-                            // 카메라 아이콘 버튼
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: _accent,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: _accent.withOpacity(0.3),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
+                          ),
+
+                          const SizedBox(height: 25),
+
+                          SizedBox(
+                            width: 480,
+                            child: OutlinedButton(
+                              onPressed: () => _showChangePasswordDialog(context),
+                              style: OutlinedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: Colors.black87,
+                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
-                                child: InkWell(
-                                  onTap: () => _showChangeProfileImageDialog(context),
-                                  child: const Icon(
-                                    Icons.camera_alt_rounded,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ),
+                                side: BorderSide(color: _accent.withOpacity(0.14)),
+                                textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                               ),
+                              child: const Text('Change password'),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
-
-                  // chainging ID 버튼 (더 큼)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => _showChangeIdDialog(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _accent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                        elevation: 6,
+                          ),
+                        ],
                       ),
-                      child: const Text('Change ID'),
                     ),
                   ),
-
-                  const SizedBox(height: 12),
-
-                  // chainging password 버튼 (더 큼)
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => _showChangePasswordDialog(context),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black87,
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        side: BorderSide(color: _accent.withOpacity(0.14)),
-                        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                      ),
-                      child: const Text('Change password'),
-                    ),
-                  ),
-
-                  // const SizedBox(height: 28),
-
-                  // // Level Setting 제목
-                  // const Text(
-                  //   'Level Setting',
-                  //   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  // ),
-
-                  // const SizedBox(height: 12),
-
-                  // // 네 가지 항목
-                  // const LevelSelector(title: 'Reading'),
-                  // const SizedBox(height: 12),
-                  // const LevelSelector(title: 'Speaking'),
-                  // const SizedBox(height: 12),
-                  // const LevelSelector(title: 'Listening'),
-                  // const SizedBox(height: 12),
-                  // const LevelSelector(title: 'Writing'),
-
-                  // const SizedBox(height: 32),
                 ],
               ),
             ),
@@ -216,116 +141,32 @@ class _SmallBackButton extends StatelessWidget {
   }
 }
 
-class LevelSelector extends StatefulWidget {
-  const LevelSelector({required this.title, Key? key}) : super(key: key);
 
-  final String title;
-
-  @override
-  State<LevelSelector> createState() => _LevelSelectorState();
-}
-
-class _LevelSelectorState extends State<LevelSelector>
-    with SingleTickerProviderStateMixin {
-  bool _expanded = false;
-  String _selected = 'change difficulty';
-  final _options = const ['easy', 'medium', 'hard', 'very hard'];
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(widget.title, style: Theme.of(context).textTheme.bodyLarge),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(.86),
-                border: Border.all(color: Colors.black.withOpacity(.06)),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _selected,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => setState(() => _expanded = !_expanded),
-                        icon: AnimatedRotation(
-                          duration: const Duration(milliseconds: 200),
-                          turns: _expanded ? 0.5 : 0.0,
-                          child: const Icon(Icons.keyboard_arrow_down_rounded),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // 확장된 옵션
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 240),
-                    curve: Curves.easeOut,
-                    child: ConstrainedBox(
-                      constraints: _expanded
-                          ? const BoxConstraints()
-                          : const BoxConstraints(maxHeight: 0),
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Column(
-                          children: _options
-                              .map((opt) => InkWell(
-                                    onTap: () {
-                                      setState(() {
-                                        _selected = opt;
-                                        _expanded = false;
-                                      });
-                                    },
-                                    child: Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 10, horizontal: 8),
-                                      margin:
-                                          const EdgeInsets.symmetric(vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: _selected == opt
-                                            ? const Color(0xFFEEF6FF)
-                                            : Colors.white,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Text(opt),
-                                    ),
-                                  ))
-                              .toList(),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 // Dialog helpers
-void _showChangeIdDialog(BuildContext context) {
-  // Placeholder for current ID; replace with real user data when available
-  const currentId = 'alex_morgan';
-  final newController = TextEditingController();
+Future<bool?> _showChangeEmailDialog(BuildContext context) async {
+  // Fetch the current user and their profile email (if available)
+  String currentEmail = '';
+  try {
+    final authUser = supabase.auth.currentUser;
+    if (authUser != null) {
+      final profile = await fetchUserProfile(authUser.id);
+      // Prefer DB profile email (we update `users` table). If missing, fall back to auth user's email.
+      currentEmail = (profile != null && profile.email.isNotEmpty)
+          ? profile.email
+          : ((authUser.email != null && authUser.email!.isNotEmpty) ? authUser.email! : '');
+    }
+  } catch (_) {
+    // ignore errors and fall back to empty string
+    currentEmail = '';
+  }
 
-  showDialog(
+  final newController = TextEditingController();
+  bool isEmailLoading = false;
+  String emailMessage = '';
+  bool emailIsError = false;
+
+  final result = await showDialog<bool?>(
     context: context,
     builder: (context) => Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -334,141 +175,127 @@ void _showChangeIdDialog(BuildContext context) {
         height: MediaQuery.of(context).size.height * 0.6,
         child: Padding(
           padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text('Change ID', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 12),
-              const Align(alignment: Alignment.centerLeft, child: Text('Current ID')),
-              const SizedBox(height: 6),
-              // non-editable display of current ID
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(currentId, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-              ),
-              const SizedBox(height: 12),
-              const Align(alignment: Alignment.centerLeft, child: Text('New ID')),
-              const SizedBox(height: 6),
-              TextField(controller: newController, decoration: const InputDecoration(border: OutlineInputBorder())),
-              const Spacer(),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-                  const SizedBox(width: 12),
-                  FilledButton(
-                    onPressed: () {
-                      // TODO: implement change id logic
-                      Navigator.of(context).pop();
-                    },
-                    child: const Text('Confirm'),
-                  ),
-                ],
-              )
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-void _showChangeProfileImageDialog(BuildContext context) {
-  showDialog(
-    context: context,
-    builder: (context) => Dialog(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Change Profile Picture',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          child: StatefulBuilder(builder: (context, setState) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _ImageOptionButton(
-                  icon: Icons.photo_camera_rounded,
-                  label: 'Camera',
-                  onTap: () {
-                    // TODO: Implement camera capture
-                    Navigator.pop(context);
-                  },
+                const Text('Change email', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 16),
+                const Align(alignment: Alignment.centerLeft, child: Text('Current email')),
+                const SizedBox(height: 6),
+                // non-editable display of current email
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(currentEmail.isNotEmpty ? currentEmail : 'Not available', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
-                _ImageOptionButton(
-                  icon: Icons.photo_library_rounded,
-                  label: 'Gallery',
-                  onTap: () {
-                    // TODO: Implement gallery picker
-                    Navigator.pop(context);
-                  },
-                ),
+                const SizedBox(height: 16),
+                const Align(alignment: Alignment.centerLeft, child: Text('New email')),
+                const SizedBox(height: 6),
+                TextField(controller: newController, decoration: const InputDecoration(border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                if (emailMessage.isNotEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: emailIsError ? Colors.red.shade50 : Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: emailIsError ? Colors.red.shade200 : Colors.green.shade200),
+                    ),
+                    child: Text(
+                      emailMessage,
+                      style: TextStyle(color: emailIsError ? Colors.red.shade800 : Colors.green.shade800),
+                    ),
+                  ),
+                const Spacer(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+                    const SizedBox(width: 12),
+                    FilledButton(
+                      onPressed: isEmailLoading ? null : () async {
+                        final newEmail = newController.text.trim();
+                        if (newEmail.isEmpty) {
+                          setState(() {
+                            emailMessage = 'Please enter a new email.';
+                            emailIsError = true;
+                          });
+                          return;
+                        }
+
+                        setState(() {
+                          isEmailLoading = true;
+                          emailMessage = '';
+                        });
+
+                        try {
+                          final authUser = supabase.auth.currentUser;
+                          if (authUser == null) {
+                            setState(() {
+                              emailMessage = 'Please log in to continue.';
+                              emailIsError = true;
+                            });
+                            return;
+                          }
+
+                          await supabase.rpc('update_user_email_bypass', params: {
+                            'new_email': newEmail,
+                          });
+
+                          await supabase.auth.refreshSession();
+
+                          await supabase.from('users').update({'email': newEmail}).eq('user_id', authUser.id);
+
+                          profileRefreshCounter.value += 1;
+
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Email updated successfully.')),
+                            );
+                            Navigator.of(context).pop(true);
+                          }
+                        } on PostgrestException catch (e) {
+                          setState(() {
+                            emailMessage = e.message;
+                            emailIsError = true;
+                          });
+                        } catch (e) {
+                          debugPrint(e.toString());
+                          setState(() {
+                            emailMessage = 'An error occurred. Please try again later.';
+                            emailIsError = true;
+                          });
+                        } finally {
+                          try {
+                            setState(() {
+                              isEmailLoading = false;
+                            });
+                          } catch (_) {}
+                        }
+                      },
+                      child: isEmailLoading
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Text('Confirm'),
+                    ),
+                  ],
+                )
               ],
-            ),
-            const SizedBox(height: 20),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-          ],
+            );
+          }),
         ),
       ),
     ),
   );
-}
 
-class _ImageOptionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _ImageOptionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2C8FFF).withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: const Color(0xFF2C8FFF),
-              size: 32,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  return result;
 }
 
 void _showChangePasswordDialog(BuildContext context) {
@@ -477,8 +304,9 @@ void _showChangePasswordDialog(BuildContext context) {
   bool obscured = true;
   bool isPasswordVerified = false;
   String verificationMessage = '';
-  // TODO: Replace this with actual stored password
-  const storedPassword = "password123";
+  bool isPasswordLoading = false;
+  String passwordActionMessage = '';
+  bool passwordActionIsError = false;
 
   showDialog(
     context: context,
@@ -510,16 +338,62 @@ void _showChangePasswordDialog(BuildContext context) {
                 ),
                 const SizedBox(height: 8),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     setState(() {
-                      if (nowController.text == storedPassword) {
-                        isPasswordVerified = true;
-                        verificationMessage = 'Password verified successfully!';
-                      } else {
-                        isPasswordVerified = false;
-                        verificationMessage = 'Password does not match';
-                      }
+                      verificationMessage = 'Verifying...';
                     });
+                    try {
+                      final authUser = supabase.auth.currentUser;
+                      if (authUser == null) {
+                        setState(() {
+                          isPasswordVerified = false;
+                          verificationMessage = 'Not logged in';
+                        });
+                        return;
+                      }
+
+                      // Try to fetch profile from DB and prefer DB-stored password if present
+                      final dbProfile = await fetchUserProfile(authUser.id);
+                      if (dbProfile != null && dbProfile.password.isNotEmpty) {
+                        if (dbProfile.password == nowController.text) {
+                          setState(() {
+                            isPasswordVerified = true;
+                            verificationMessage = 'Password verified';
+                          });
+                        } else {
+                          setState(() {
+                            isPasswordVerified = false;
+                            verificationMessage = 'Password does not match';
+                          });
+                        }
+                        return;
+                      }
+
+                      // Fallback: verify via Supabase auth sign-in
+                      final email = (dbProfile != null && dbProfile.email.isNotEmpty) ? dbProfile.email : (authUser.email ?? '');
+
+                      final res = await supabase.auth.signInWithPassword(
+                        email: email,
+                        password: nowController.text,
+                      );
+
+                      if (res.session != null) {
+                        setState(() {
+                          isPasswordVerified = true;
+                          verificationMessage = 'Password verified successfully!';
+                        });
+                      } else {
+                        setState(() {
+                          isPasswordVerified = false;
+                          verificationMessage = 'Password does not match';
+                        });
+                      }
+                    } catch (e) {
+                      setState(() {
+                        isPasswordVerified = false;
+                        verificationMessage = 'Error verifying password';
+                      });
+                    }
                   },
                   child: const Text('Verify'),
                 ),
@@ -532,6 +406,21 @@ void _showChangePasswordDialog(BuildContext context) {
                         color: isPasswordVerified ? Colors.green : Colors.red,
                         fontWeight: FontWeight.w500,
                       ),
+                    ),
+                  ),
+                if (passwordActionMessage.isNotEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    margin: const EdgeInsets.only(top: 8),
+                    decoration: BoxDecoration(
+                      color: passwordActionIsError ? Colors.red.shade50 : Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: passwordActionIsError ? Colors.red.shade200 : Colors.green.shade200),
+                    ),
+                    child: Text(
+                      passwordActionMessage,
+                      style: TextStyle(color: passwordActionIsError ? Colors.red.shade800 : Colors.green.shade800),
                     ),
                   ),
                 const SizedBox(height: 12),
@@ -551,11 +440,63 @@ void _showChangePasswordDialog(BuildContext context) {
                     TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
                     const SizedBox(width: 12),
                     FilledButton(
-                      onPressed: isPasswordVerified ? () {
-                        // TODO: implement change password logic
-                        Navigator.of(context).pop();
-                      } : null,
-                      child: const Text('Confirm'),
+                      onPressed: (isPasswordVerified && !isPasswordLoading) ? () async {
+                          final newPass = newController.text;
+                          if (newPass.isEmpty) {
+                            setState(() {
+                              passwordActionMessage = 'Please enter a new password.';
+                              passwordActionIsError = true;
+                            });
+                            return;
+                          }
+                          if (newPass.length < 6) {
+                            setState(() {
+                              passwordActionMessage = 'The new password must be at least 6 characters.';
+                              passwordActionIsError = true;
+                            });
+                            return;
+                          }
+
+                          setState(() {
+                            isPasswordLoading = true;
+                            passwordActionMessage = '';
+                          });
+
+                          try {
+                            // Update password for current user (auth)
+                            final res = await supabase.auth.updateUser(UserAttributes(password: newPass));
+                            if (res.user == null) {
+                              throw Exception('Failed to update auth password');
+                            }
+
+                            // If the app stores a copy of the password in the `users` table, update it there as well
+                            try {
+                              final authUser = supabase.auth.currentUser;
+                              if (authUser != null) {
+                                await supabase.from('users').update({'password': newPass}).eq('user_id', authUser.id);
+                              }
+                            } catch (_) {
+                              // ignore DB write errors for stored password sync
+                            }
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Password changed successfully.')),
+                            );
+                            Navigator.of(context).pop();
+                          } catch (e) {
+                            setState(() {
+                              passwordActionMessage = 'Failed to change password.';
+                              passwordActionIsError = true;
+                            });
+                          } finally {
+                            try {
+                              setState(() {
+                                isPasswordLoading = false;
+                              });
+                            } catch (_) {}
+                          }
+                        } : null,
+                      child: isPasswordLoading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Confirm'),
                     ),
                   ],
                 )

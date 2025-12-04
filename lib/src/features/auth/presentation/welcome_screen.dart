@@ -179,7 +179,7 @@ class _CardScrollContent extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          'AI Tutor & Examiner for high‑stakes English exams',
+          'AI Tutor & Examiner for IELTS',
           style: textTheme.displaySmall?.copyWith(
             fontWeight: FontWeight.w800,
             height: 1.06,
@@ -188,21 +188,10 @@ class _CardScrollContent extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Practice reading, listening, writing, and speaking with real test logic. Get examiner‑style scoring, pinpoint weaknesses, and train micro‑skills that actually move your score.',
+          'Practice reading, listening, writing, and speaking with real test logic.',
           style: textTheme.titleMedium?.copyWith(
             color: const Color(0xFF5C6470),
           ),
-        ),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: const [
-            _Chip('Band/Score aligned feedback'),
-            _Chip('Liquid‑glass focus UI'),
-            _Chip('Adaptive retests'),
-            _Chip('Offline practice'),
-          ],
         ),
         const SizedBox(height: 20),
         Wrap(
@@ -223,37 +212,7 @@ class _CardScrollContent extends StatelessWidget {
               label: 'CGPT Playground',
               onTap: () => Navigator.of(context).pushNamed('/chatgpt-test'),
             ),
-            _GlassButton(
-              label: 'Take placement test (10–15 min)',
-              onTap: () {},
-              small: true,
-            ),
           ],
-        ),
-        const SizedBox(height: 14),
-        Wrap(
-          spacing: 10,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            _Meta(
-              text: 'Goal recommendation ready in under 60s',
-              color: const Color(0xFF5C6470),
-            ),
-            Opacity(opacity: .4, child: Text('·', style: textTheme.bodyMedium)),
-            _Meta(text: 'No ads', color: const Color(0xFF5C6470)),
-            Opacity(opacity: .4, child: Text('·', style: textTheme.bodyMedium)),
-            _Meta(
-              text: 'Privacy‑first: your audio stays on device*',
-              color: const Color(0xFF5C6470),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        const _FeatureStrip(),
-        const SizedBox(height: 14),
-        Text(
-          '*Optional cloud sync for progress. You control data and exports.',
-          style: textTheme.bodySmall?.copyWith(color: const Color(0xFF5C6470)),
         ),
       ],
     );
@@ -409,71 +368,6 @@ class _Meta extends StatelessWidget {
       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
         color: color ?? Theme.of(context).colorScheme.onSurfaceVariant,
       ),
-    );
-  }
-}
-
-class _FeatureStrip extends StatelessWidget {
-  const _FeatureStrip();
-  @override
-  Widget build(BuildContext context) {
-    final items = <(String, String)>[
-      (
-        'Reading coach.',
-        'Skimming, scanning, inference, and keyword mapping with instant rationales.',
-      ),
-      (
-        'Listening like the real thing.',
-        'Predict answers, take notes, avoid distractors. Strict/Coach modes.',
-      ),
-      (
-        'Speaking & Writing rubrics.',
-        'Examiner‑style scoring with rewrites, shadowing, and intonation coach.',
-      ),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, c) {
-        final isNarrow = c.maxWidth < 840;
-        return Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            for (final (title, body) in items)
-              SizedBox(
-                width: isNarrow ? c.maxWidth : (c.maxWidth - 24) / 3,
-                child: _GlassCapsule(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _LogoGradientBox(size: 34),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              body,
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
     );
   }
 }
