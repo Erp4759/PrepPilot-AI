@@ -1,8 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
-import 'register_screen.dart';
+import '../../../library/test_helper.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -15,8 +14,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     final viewport = MediaQuery.of(context).size.height;
-    const topPad = 48.0; // breathing room top
-    const bottomPad = 120.0; // keep clear of bottom bar
+    const topPad = 48.0;
+    const bottomPad = 120.0;
+    Key _statsKey = UniqueKey();
+
+    Future<void> _refreshStats() async {
+      // Trigger a rebuild by changing the key
+      setState(() {
+        _statsKey = UniqueKey();
+      });
+    }
 
     return Scaffold(
       body: Stack(
@@ -33,10 +40,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   child: _GlassCard(
                     child: SizedBox(
                       height: viewport - (topPad + bottomPad),
-                      child: ScrollConfiguration(
-                        behavior: const _NoGlowScrollBehavior(),
-                        child: const SingleChildScrollView(
-                          child: _CardScrollContent(),
+                      child: RefreshIndicator(
+                        onRefresh: _refreshStats,
+                        color: const Color(0xFF2C8FFF),
+                        child: ScrollConfiguration(
+                          behavior: const _NoGlowScrollBehavior(),
+                          child: SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: _CardScrollContent(key: _statsKey),
+                          ),
                         ),
                       ),
                     ),
@@ -77,7 +89,6 @@ class _StaticBackdrop extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Soft radial blobs (static, no blur to avoid flicker)
           Positioned(
             left: -80,
             top: -120,
@@ -154,7 +165,8 @@ class _GlassCard extends StatelessWidget {
 }
 
 class _CardScrollContent extends StatelessWidget {
-  const _CardScrollContent();
+  const _CardScrollContent({super.key});
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -193,32 +205,420 @@ class _CardScrollContent extends StatelessWidget {
             color: const Color(0xFF5C6470),
           ),
         ),
-        const SizedBox(height: 20),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
+        const SizedBox(height: 32),
+
+        // User Stats Section
+        const _UserStatsSection(),
+      ],
+    );
+  }
+}
+
+// User Stats Section with FutureBuilder
+class _UserStatsSection extends StatelessWidget {
+  const _UserStatsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: TestHelper.fetchUserStats(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32.0),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return _GlassCapsule(
+            padding: const EdgeInsets.all(20),
+            child: Text(
+              'Unable to load stats',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          );
+        }
+
+        final stats = snapshot.data!;
+        final totalTests = stats['total_tests'] as int;
+
+        // If no tests, show welcome message
+        if (totalTests == 0) {
+          return _NoTestsYet();
+        }
+
+        return Column(
           children: [
-            _PrimaryButton(
-              label: 'Register',
-              onTap: () =>
-                  Navigator.of(context).pushNamed(RegisterScreen.routeName),
-            ),
-            _GlassButton(
-              label: 'Login',
-              onTap: () =>
-                  Navigator.of(context).pushNamed(LoginScreen.routeName),
-            ),
-            _GlassButton(
-              label: 'CGPT Playground',
-              onTap: () => Navigator.of(context).pushNamed('/chatgpt-test'),
-            ),
+            // Quick Stats
+            _QuickStatsCard(stats: stats),
+            const SizedBox(height: 16),
+
+            // Score Improvement
+            _ScoreImprovementCard(),
+            const SizedBox(height: 16),
+
+            // Module Performance
+            _ModulePerformanceCard(),
           ],
+        );
+      },
+    );
+  }
+}
+
+// No tests placeholder
+class _NoTestsYet extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return _GlassCapsule(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.assessment_outlined,
+            size: 48,
+            color: Color(0xFF2C8FFF),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Ready to start?',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Take your first test to see your stats here',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF5C6470)),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Quick Stats Card
+class _QuickStatsCard extends StatelessWidget {
+  const _QuickStatsCard({required this.stats});
+  final Map<String, dynamic> stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final totalTests = stats['total_tests'] as int;
+    final avgPercentage = stats['average_percentage'] as int;
+    final scoreTrend = stats['score_trend'] as String;
+
+    // Trend icon and color
+    IconData trendIcon;
+    Color trendColor;
+    if (scoreTrend == 'improving') {
+      trendIcon = Icons.trending_up;
+      trendColor = Colors.green;
+    } else if (scoreTrend == 'declining') {
+      trendIcon = Icons.trending_down;
+      trendColor = Colors.orange;
+    } else {
+      trendIcon = Icons.trending_flat;
+      trendColor = Colors.blue;
+    }
+
+    return _GlassCapsule(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const _LogoGradientBox(size: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Your Progress',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(trendIcon, size: 16, color: trendColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          scoreTrend == 'improving'
+                              ? 'Improving'
+                              : scoreTrend == 'declining'
+                              ? 'Needs work'
+                              : 'Stable',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: trendColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _StatItem(label: 'Tests', value: '$totalTests'),
+              ),
+              Container(
+                width: 1,
+                height: 40,
+                color: Colors.black.withOpacity(.08),
+              ),
+              Expanded(
+                child: _StatItem(label: 'Avg Score', value: '$avgPercentage%'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Score Improvement Card
+class _ScoreImprovementCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: TestHelper.fetchScoreImprovement(limit: 5),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+
+        if (!snapshot.hasData || snapshot.hasError) {
+          return const SizedBox.shrink();
+        }
+
+        final improvement = snapshot.data!;
+        final scores = improvement['scores'] as List;
+
+        if (scores.isEmpty) return const SizedBox.shrink();
+
+        final message = improvement['message'] as String;
+        final improvementValue = improvement['improvement'] as int;
+
+        return _GlassCapsule(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0x1F2C8FFF),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.show_chart,
+                      color: Color(0xFF2C8FFF),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Last 5 Tests',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (improvementValue != 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: improvementValue > 0
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${improvementValue > 0 ? '+' : ''}$improvementValue%',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: improvementValue > 0
+                              ? Colors.green
+                              : Colors.orange,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: const Color(0xFF5C6470)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// Module Performance Card
+class _ModulePerformanceCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: TestHelper.fetchModulePerformance(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+
+        if (!snapshot.hasData || snapshot.hasError) {
+          return const SizedBox.shrink();
+        }
+
+        final perf = snapshot.data!;
+        final modules = perf['modules'] as Map<String, dynamic>;
+
+        if (modules.isEmpty) return const SizedBox.shrink();
+
+        final strongestModule = perf['strongest_module'] as String?;
+        final weakestModule = perf['weakest_module'] as String?;
+
+        return _GlassCapsule(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0x1F2C8FFF),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.analytics_outlined,
+                      color: Color(0xFF2C8FFF),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Module Performance',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ...modules.entries.map((entry) {
+                final module = entry.key;
+                final data = entry.value as Map<String, dynamic>;
+                final percentage = data['average_percentage'] as int;
+                final isStrongest = module == strongestModule;
+                final isWeakest = module == weakestModule;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          module.toUpperCase(),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      Text(
+                        '$percentage%',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: isStrongest
+                              ? Colors.green
+                              : isWeakest
+                              ? Colors.orange
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (isStrongest)
+                        const Icon(
+                          Icons.emoji_events,
+                          size: 16,
+                          color: Colors.green,
+                        )
+                      else if (isWeakest)
+                        const Icon(
+                          Icons.arrow_upward,
+                          size: 16,
+                          color: Colors.orange,
+                        ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  const _StatItem({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF2C8FFF),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: const Color(0xFF5C6470)),
         ),
       ],
     );
   }
 }
 
+// Keep all your existing widget classes below
 class _GlassCapsule extends StatelessWidget {
   const _GlassCapsule({required this.child, this.padding});
   final Widget child;
@@ -291,82 +691,6 @@ class _Dot extends StatelessWidget {
           colors: [Color(0xE0FFFFFF), Color(0xCC82CEFF)],
         ),
         boxShadow: [BoxShadow(color: Color(0xB382CEFF), blurRadius: 18)],
-      ),
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  const _Chip(this.label);
-  final String label;
-  @override
-  Widget build(BuildContext context) {
-    return _GlassCapsule(
-      child: Text(label, style: Theme.of(context).textTheme.labelMedium),
-    );
-  }
-}
-
-class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({required this.label, required this.onTap});
-  final String label;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        backgroundColor: const Color(0xFF2C8FFF),
-        foregroundColor: Colors.white,
-        shadowColor: const Color(0x302C8FFF),
-        elevation: 6,
-      ),
-      onPressed: onTap,
-      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
-    );
-  }
-}
-
-class _GlassButton extends StatelessWidget {
-  const _GlassButton({
-    required this.label,
-    required this.onTap,
-    this.small = false,
-  });
-  final String label;
-  final VoidCallback onTap;
-  final bool small;
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: _GlassCapsule(
-        padding: EdgeInsets.symmetric(
-          horizontal: small ? 14 : 18,
-          vertical: small ? 10 : 14,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontWeight: small ? FontWeight.w600 : FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Meta extends StatelessWidget {
-  const _Meta({required this.text, this.color});
-  final String text;
-  final Color? color;
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-        color: color ?? Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
   }

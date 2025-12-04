@@ -16,12 +16,19 @@ class TestHelper {
       moduleType: moduleType,
     );
 
+    final pastTitles = await _fetchPastTestTitles(
+      testType: testType,
+      moduleType: moduleType,
+      limit: 5,
+    );
+
     // 2. Inject variables into the prompt
     final finalPrompt = _injectVariablesIntoPrompt(
       promptTemplate: promptData['prompt_text'],
       difficulty: difficulty,
       testType: testType,
       moduleType: moduleType,
+      pastTitles: pastTitles,
     );
 
     // 3. Generate test JSON via ChatGPT
@@ -40,6 +47,41 @@ class TestHelper {
     await _storeQuestionsInSupabase(testId: testId, testJson: testJson);
 
     return testId;
+  }
+
+  // -------------------------------------------------------------
+  // FETCH PAST TEST TITLES
+  // -------------------------------------------------------------
+  /// Fetch the past N test titles for the current user
+  /// to prevent generating duplicate tests
+  static Future<List<String>> _fetchPastTestTitles({
+    required String testType,
+    required String moduleType,
+    int limit = 5,
+  }) async {
+    final user = supabase.auth.currentUser;
+
+    if (user == null) {
+      // If not logged in, return empty list (no history to check)
+      return [];
+    }
+
+    try {
+      final response = await supabase
+          .from('tests')
+          .select('title')
+          .eq('user_id', user.id)
+          .eq('test_type', testType)
+          .eq('module_type', moduleType)
+          .order('created_at', ascending: false)
+          .limit(limit);
+
+      return (response as List).map((row) => row['title'] as String).toList();
+    } catch (e) {
+      // If there's an error fetching past titles, return empty list
+      print('Error fetching past titles: $e');
+      return [];
+    }
   }
 
   // -------------------------------------------------------------
@@ -78,11 +120,13 @@ class TestHelper {
     required String difficulty,
     required String testType,
     required String moduleType,
+    required List<String> pastTitles,
   }) {
     return promptTemplate
         .replaceAll('{difficulty}', difficulty)
         .replaceAll('{testType}', testType)
-        .replaceAll('{moduleType}', moduleType);
+        .replaceAll('{moduleType}', moduleType)
+        .replaceAll('{pastTitles}', pastTitles.join(', '));
   }
 
   // -------------------------------------------------------------
@@ -581,9 +625,9 @@ class TestHelper {
   ${jsonEncode(detailedResults)}
 
   Instructions:
-  1. Provide an overall assessment of the student's performance and areas for improvement.
-
-  Keep the feedback constructive, specific, and encouraging. Focus on helping the student improve.
+  Provide an overall assessment of the student's performance and areas for improvement.
+  However, be concise and limit the feedback to around 200 words.
+  Just be straight to the point. Do not add unnecessary fluff like "I hope this helps" or "Good luck".
   Write in a friendly, professional tone suitable for IELTS preparation.
 
   Return ONLY the feedback text (no JSON, no extra formatting, no bullet points, no bolded text, no titles).
@@ -921,5 +965,319 @@ class TestHelper {
         .order('created_at', ascending: false);
 
     return (response as List).cast<Map<String, dynamic>>();
+  }
+
+  /// Get personalized statistics for the current user
+  static Future<Map<String, dynamic>> fetchUserStats() async {
+    final user = supabase.auth.currentUser;
+
+    if (user == null) {
+      throw Exception('Please log in to view statistics.');
+    }
+
+    // Fetch all results for the user
+    final results = await supabase
+        .from('results')
+        .select('''
+        result_id,
+        score,
+        total_points,
+        created_at,
+        tests (
+          test_type,
+          module_type,
+          difficulty
+        )
+      ''')
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false);
+
+    if (results.isEmpty) {
+      return {
+        'total_tests': 0,
+        'average_score': 0,
+        'average_percentage': 0,
+        'recent_tests': [],
+        'score_trend': 'neutral',
+        'total_points_earned': 0,
+        'total_points_possible': 0,
+        'tests_by_type': {},
+        'tests_by_module': {},
+      };
+    }
+
+    // Calculate basic stats
+    final totalTests = results.length;
+    final totalPointsEarned = results.fold<int>(
+      0,
+      (sum, r) => sum + (r['score'] as int? ?? 0),
+    );
+    final totalPointsPossible = results.fold<int>(
+      0,
+      (sum, r) => sum + (r['total_points'] as int? ?? 0),
+    );
+    final averageScore = totalTests > 0 ? totalPointsEarned / totalTests : 0;
+    final averagePercentage = totalPointsPossible > 0
+        ? (totalPointsEarned / totalPointsPossible * 100).round()
+        : 0;
+
+    // Get last 5 tests for score trend
+    final recentTests = results.take(5).toList();
+    final recentScores = recentTests.map((r) {
+      final score = r['score'] as int? ?? 0;
+      final total = r['total_points'] as int? ?? 1;
+      return (score / total * 100).round();
+    }).toList();
+
+    // Calculate score trend
+    String scoreTrend = 'neutral';
+    if (recentScores.length >= 2) {
+      final firstHalf = recentScores.sublist(
+        0,
+        (recentScores.length / 2).ceil(),
+      );
+      final secondHalf = recentScores.sublist((recentScores.length / 2).ceil());
+
+      final firstAvg = firstHalf.reduce((a, b) => a + b) / firstHalf.length;
+      final secondAvg = secondHalf.reduce((a, b) => a + b) / secondHalf.length;
+
+      if (secondAvg > firstAvg + 5) {
+        scoreTrend = 'improving';
+      } else if (secondAvg < firstAvg - 5) {
+        scoreTrend = 'declining';
+      }
+    }
+
+    // Group tests by type and module
+    final testsByType = <String, int>{};
+    final testsByModule = <String, int>{};
+
+    for (final result in results) {
+      final test = result['tests'];
+      final testType = test['test_type'] as String? ?? 'unknown';
+      final moduleType = test['module_type'] as String? ?? 'unknown';
+
+      testsByType[testType] = (testsByType[testType] ?? 0) + 1;
+      testsByModule[moduleType] = (testsByModule[moduleType] ?? 0) + 1;
+    }
+
+    // Format recent tests for display
+    final recentTestsFormatted = recentTests.map((r) {
+      final score = r['score'] as int? ?? 0;
+      final total = r['total_points'] as int? ?? 1;
+      final percentage = (score / total * 100).round();
+
+      return {
+        'result_id': r['result_id'],
+        'score': score,
+        'total_points': total,
+        'percentage': percentage,
+        'created_at': r['created_at'],
+        'test_type': r['tests']['test_type'],
+        'module_type': r['tests']['module_type'],
+      };
+    }).toList();
+
+    return {
+      'total_tests': totalTests,
+      'average_score': averageScore.round(),
+      'average_percentage': averagePercentage,
+      'recent_tests': recentTestsFormatted,
+      'score_trend': scoreTrend,
+      'total_points_earned': totalPointsEarned,
+      'total_points_possible': totalPointsPossible,
+      'tests_by_type': testsByType,
+      'tests_by_module': testsByModule,
+    };
+  }
+
+  /// Get detailed score improvement analysis for the last N tests
+  static Future<Map<String, dynamic>> fetchScoreImprovement({
+    int limit = 5,
+    String? testType,
+    String? moduleType,
+  }) async {
+    final user = supabase.auth.currentUser;
+
+    if (user == null) {
+      throw Exception('Please log in to view score improvement.');
+    }
+
+    // Fetch all results first
+    final allResults = await supabase
+        .from('results')
+        .select('''
+        result_id,
+        score,
+        total_points,
+        created_at,
+        test_id,
+        tests (
+          test_type,
+          module_type,
+          difficulty
+        )
+      ''')
+        .eq('user_id', user.id)
+        .order('created_at', ascending: true);
+
+    // Filter in Dart if filters are provided
+    var results = allResults;
+
+    if (testType != null) {
+      results = results
+          .where((r) => r['tests']['test_type'] == testType)
+          .toList();
+    }
+
+    if (moduleType != null) {
+      results = results
+          .where((r) => r['tests']['module_type'] == moduleType)
+          .toList();
+    }
+
+    // Take only the last N tests
+    results = results.length > limit
+        ? results.sublist(results.length - limit)
+        : results;
+
+    if (results.isEmpty) {
+      return {
+        'scores': [],
+        'improvement': 0,
+        'trend': 'neutral',
+        'message': 'No test history available',
+      };
+    }
+
+    // Calculate percentages
+    final scores = results.map((r) {
+      final score = r['score'] as int? ?? 0;
+      final total = r['total_points'] as int? ?? 1;
+      return {
+        'percentage': (score / total * 100).round(),
+        'score': score,
+        'total': total,
+        'date': r['created_at'],
+      };
+    }).toList();
+
+    // Calculate improvement
+    int improvement = 0;
+    String trend = 'neutral';
+    String message = '';
+
+    if (scores.length >= 2) {
+      final firstScore = scores.first['percentage'] as int;
+      final lastScore = scores.last['percentage'] as int;
+      improvement = lastScore - firstScore;
+
+      if (improvement > 5) {
+        trend = 'improving';
+        message = 'Great progress! You\'ve improved by $improvement% 📈';
+      } else if (improvement < -5) {
+        trend = 'declining';
+        message =
+            'Keep practicing! Your scores have decreased by ${improvement.abs()}%';
+      } else {
+        trend = 'stable';
+        message = 'Your performance is stable. Keep up the good work! 💪';
+      }
+    } else {
+      message = 'Complete more tests to see your improvement trend';
+    }
+
+    return {
+      'scores': scores,
+      'improvement': improvement,
+      'trend': trend,
+      'message': message,
+      'first_score': scores.first['percentage'],
+      'last_score': scores.last['percentage'],
+      'average_score':
+          scores.fold<int>(0, (sum, s) => sum + (s['percentage'] as int)) ~/
+          scores.length,
+    };
+  }
+
+  /// Get breakdown of performance by module type
+  static Future<Map<String, dynamic>> fetchModulePerformance() async {
+    final user = supabase.auth.currentUser;
+
+    if (user == null) {
+      throw Exception('Please log in to view module performance.');
+    }
+
+    final results = await supabase
+        .from('results')
+        .select('''
+        score,
+        total_points,
+        tests (
+          module_type
+        )
+      ''')
+        .eq('user_id', user.id);
+
+    if (results.isEmpty) {
+      return {'modules': {}, 'strongest_module': null, 'weakest_module': null};
+    }
+
+    // Group by module
+    final moduleStats = <String, Map<String, dynamic>>{};
+
+    for (final result in results) {
+      final module = result['tests']['module_type'] as String;
+      final score = result['score'] as int? ?? 0;
+      final total = result['total_points'] as int? ?? 1;
+
+      if (!moduleStats.containsKey(module)) {
+        moduleStats[module] = {
+          'total_score': 0,
+          'total_points': 0,
+          'test_count': 0,
+        };
+      }
+
+      moduleStats[module]!['total_score'] += score;
+      moduleStats[module]!['total_points'] += total;
+      moduleStats[module]!['test_count'] += 1;
+    }
+
+    // Calculate averages and find strongest/weakest
+    String? strongestModule;
+    String? weakestModule;
+    int highestPercentage = 0;
+    int lowestPercentage = 100;
+
+    final modules = moduleStats.map((module, stats) {
+      final percentage = (stats['total_score'] / stats['total_points'] * 100)
+          .round();
+
+      if (percentage > highestPercentage) {
+        highestPercentage = percentage;
+        strongestModule = module;
+      }
+
+      if (percentage < lowestPercentage) {
+        lowestPercentage = percentage;
+        weakestModule = module;
+      }
+
+      return MapEntry(module, {
+        'test_count': stats['test_count'],
+        'average_percentage': percentage,
+        'total_score': stats['total_score'],
+        'total_points': stats['total_points'],
+      });
+    });
+
+    return {
+      'modules': modules,
+      'strongest_module': strongestModule,
+      'weakest_module': weakestModule,
+      'strongest_percentage': highestPercentage,
+      'weakest_percentage': lowestPercentage,
+    };
   }
 }

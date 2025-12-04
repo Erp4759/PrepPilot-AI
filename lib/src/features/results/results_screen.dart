@@ -70,19 +70,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       style: Theme.of(context).textTheme.headlineMedium
                           ?.copyWith(fontWeight: FontWeight.w800),
                     ),
-                    _GlassButton(
-                      label: 'Back',
-                      onTap: () => Navigator.of(context).pop(),
-                    ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                _GlassButton(
-                  label: 'See Past Mistakes',
-                  onTap: () =>
-                      Navigator.of(context).pushNamed('/past-mistakes'),
-                  fullWidth: true,
-                ),
+                // const SizedBox(height: 16),
+                // _GlassButton(
+                //   label: 'See Past Mistakes',
+                //   onTap: () =>
+                //       Navigator.of(context).pushNamed('/past-mistakes'),
+                //   fullWidth: true,
+                // ),
                 const SizedBox(height: 16),
                 Expanded(
                   child: _GlassCard(
