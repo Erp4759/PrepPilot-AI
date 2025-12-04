@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../features/auth/presentation/welcome_screen.dart';
 import '../features/results/results_screen.dart';
+import '../features/about.dart';
 import '../features/skills/skills_main_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -304,7 +305,10 @@ class _MenuBottomSheet extends StatelessWidget {
                     icon: Icons.info_rounded,
                     title: 'About',
                     subtitle: 'Version, licenses',
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      showCustomAboutDialog(context);
+                    },
                   ),
                 ],
               ),

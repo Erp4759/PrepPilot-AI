@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'get_profile.dart';
+import 'get_feedback.dart';
 import '../../services/supabase.dart';
 import '../profile_setting/profile_notifier.dart';
 
@@ -14,6 +15,7 @@ class ProfileInfoScreen extends StatefulWidget {
 class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   bool _loading = true;
   UserProfile? _profile;
+  // pain points removed — we only display difficulty levels
 
   @override
   void initState() {
@@ -33,6 +35,11 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
         return;
       }
       final p = await fetchUserProfile(authUser.id);
+      // compute/refresh difficulty levels (kept) — ignore pain points
+      try {
+        await computeLearningLevelAndPainPoints(authUser.id);
+      } catch (_) {}
+
       setState(() {
         _profile = p;
         _loading = false;
@@ -59,6 +66,10 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
     final listening = _profile?.listeningDifficulty ?? 0;
     final writing = _profile?.scanningDifficulty ?? 0;
 
+    String readingLevelDisplay = _loading ? '' : (reading > 0 ? reading.toString() : '-');
+    String speakingLevelDisplay = _loading ? '' : (speaking > 0 ? speaking.toString() : '-');
+    String listeningLevelDisplay = _loading ? '' : (listening > 0 ? listening.toString() : '-');
+    String writingLevelDisplay = _loading ? '' : (writing > 0 ? writing.toString() : '-');
     return Scaffold(
       extendBody: true,
       body: Stack(
@@ -81,112 +92,62 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Top bar with back button and title
                   Row(
                     children: [
                       _SmallBackButton(),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 16),
                       const Text(
-                        'Profile Info',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                        ),
+                        'Profile',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
-                  // Basic Info Card
                   _GlassCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
                           'Basic Info',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 16),
-                        // Profile Image and Info
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Info Section
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _InfoRow(label: 'Name', value: _loading ? 'Loading...' : (name.isNotEmpty ? name : '-')),
-                                  const SizedBox(height: 18),
-                                  _InfoRow(label: 'Email', value: _loading ? 'Loading...' : (email.isNotEmpty ? email : '-')),
-                                ]
-                              ),
-                            ),
-                          ],
-                        ),
+                        _InfoRow(label: 'Name', value: _loading ? 'Loading...' : (name.isNotEmpty ? name : '-')),
+                        const SizedBox(height: 12),
+                        _InfoRow(label: 'Email', value: _loading ? 'Loading...' : (email.isNotEmpty ? email : '-')),
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 24),
 
-                  // User's PainPoint Card
                   _GlassCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          "PainPoint",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                          'User Skill level',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 16),
+                        _SkillCard(title: 'Reading', level: readingLevelDisplay),
+                        const SizedBox(height: 16),
+                        _SkillCard(title: 'Speaking', level: speakingLevelDisplay),
+                        const SizedBox(height: 16),
+                        _SkillCard(title: 'Listening', level: listeningLevelDisplay),
+                        const SizedBox(height: 16),
+                        _SkillCard(title: 'Writing', level: writingLevelDisplay),
+                        const SizedBox(height: 12),
+                        Center(
+                          child: Text(
+                            'Score is computed based on your test result.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        // Reading
-                        _SkillCard(
-                          title: 'Reading',
-                          level: _loading ? '' : reading.toString(),
-                          painPoints: [
-                            'Difficulty with complex academic texts',
-                            'Slow reading speed',
-                            'Limited vocabulary in specific fields',
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Speaking
-                        _SkillCard(
-                          title: 'Speaking',
-                          level: _loading ? '' : speaking.toString(),
-                          painPoints: [
-                            'Occasional pronunciation mistakes',
-                            'Hesitation in formal situations',
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Listening
-                        _SkillCard(
-                          title: 'Listening',
-                          level: _loading ? '' : listening.toString(),
-                          painPoints: [
-                            'Difficulty with fast speech',
-                            'Trouble with various accents',
-                            'Missing key details in lectures',
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Writing
-                        _SkillCard(
-                          title: 'Writing',
-                          level: _loading ? '' : writing.toString(),
-                          painPoints: [
-                            'Grammar mistakes in complex sentences',
-                            'Academic writing style needs improvement',
-                          ],
                         ),
                       ],
                     ),
@@ -300,19 +261,37 @@ class _InfoRow extends StatelessWidget {
 class _SkillCard extends StatelessWidget {
   final String title;
   final String level;
-  final List<String> painPoints;
-  static const _accent = Color(0xFF2C8FFF);
 
   const _SkillCard({
     required this.title,
     required this.level,
-    required this.painPoints,
   });
+
+  String _labelForLevel(int l) {
+    switch (l) {
+      case 1:
+        return 'Beginner';
+      case 2:
+        return 'Novice';
+      case 3:
+        return 'Intermediate';
+      case 4:
+        return 'Advanced';
+      case 5:
+        return 'Expert';
+      default:
+        return '-';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final int? lvl = int.tryParse(level);
+    final double fillFraction = (lvl != null && lvl > 0) ? (lvl.clamp(1, 5) / 5.0) : 0.0;
+    final String label = (lvl != null && lvl > 0) ? _labelForLevel(lvl) : '-';
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -337,51 +316,66 @@ class _SkillCard extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _accent.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  level,
-                  style: TextStyle(
-                    color: _accent,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+              Text(
+                lvl != null && lvl > 0 ? '$lvl / 5' : '-',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey[700],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          ...painPoints.map((point) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(top: 6),
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[400],
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        point,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ),
-                  ],
+          const SizedBox(height: 10),
+          // Gradient bar
+          LayoutBuilder(builder: (context, constraints) {
+            final double width = constraints.maxWidth;
+            return Stack(
+              children: [
+                Container(
+                  height: 14,
+                  width: width,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
-              )),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
+                  height: 14,
+                  width: width * fillFraction,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [Color(0xFF6EE7B7), Color(0xFF2C8FFF)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                // Label on top-right of the bar
+                Positioned.fill(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            shadows: [Shadow(blurRadius: 4, color: Colors.black26, offset: Offset(0, 1))],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }),
         ],
       ),
     );
