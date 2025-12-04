@@ -198,16 +198,6 @@ class _CardScrollContent extends StatelessWidget {
           spacing: 12,
           runSpacing: 12,
           children: [
-            _PrimaryButton(
-              label: 'Register',
-              onTap: () =>
-                  Navigator.of(context).pushNamed(RegisterScreen.routeName),
-            ),
-            _GlassButton(
-              label: 'Login',
-              onTap: () =>
-                  Navigator.of(context).pushNamed(LoginScreen.routeName),
-            ),
             _GlassButton(
               label: 'CGPT Playground',
               onTap: () => Navigator.of(context).pushNamed('/chatgpt-test'),

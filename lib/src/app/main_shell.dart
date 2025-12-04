@@ -5,6 +5,7 @@ import '../features/auth/presentation/welcome_screen.dart';
 import '../features/results/results_screen.dart';
 import '../features/about.dart';
 import '../features/skills/skills_main_screen.dart';
+import '../library/auth_helper.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -308,6 +309,18 @@ class _MenuBottomSheet extends StatelessWidget {
                     onTap: () {
                       Navigator.of(context).pop();
                       showCustomAboutDialog(context);
+                    },
+                  ),
+                  _MenuTile(
+                    icon: Icons.logout_rounded,
+                    title: 'Logout',
+                    subtitle: 'Sign out of your account',
+                    onTap: () async {
+                      Navigator.of(context).pop();
+                      await AuthHelper.logout();
+                      if (context.mounted) {
+                        Navigator.of(context).pushReplacementNamed('/login');
+                      }
                     },
                   ),
                 ],

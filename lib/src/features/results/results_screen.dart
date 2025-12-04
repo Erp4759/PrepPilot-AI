@@ -70,10 +70,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       style: Theme.of(context).textTheme.headlineMedium
                           ?.copyWith(fontWeight: FontWeight.w800),
                     ),
-                    _GlassButton(
-                      label: 'Back',
-                      onTap: () => Navigator.of(context).pop(),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 16),

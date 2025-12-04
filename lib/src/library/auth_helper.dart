@@ -65,7 +65,18 @@ class AuthHelper {
       return response;
     } on AuthException catch (e) {
       print('Login failed: ${e.message}');
-      rethrow;
+
+      // Handle specific auth errors
+      switch (e.code) {
+        case 'invalid_credentials':
+          throw Exception('Invalid credentials');
+        case 'email_not_confirmed':
+          throw Exception('Please verify your email address');
+        case 'user_not_found':
+          throw Exception('User not found');
+        default:
+          throw Exception(e.message ?? 'Authentication failed');
+      }
     } catch (e) {
       print('Unexpected error: $e');
       rethrow;
