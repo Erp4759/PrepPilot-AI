@@ -316,7 +316,7 @@ class _MenuBottomSheet extends StatelessWidget {
                     title: 'Logout',
                     subtitle: 'Sign out of your account',
                     onTap: () async {
-                      Navigator.of(context).pop();
+                      // Don't pop the bottom sheet manually
                       await AuthHelper.logout();
                       if (context.mounted) {
                         Navigator.of(context).pushReplacementNamed('/login');
