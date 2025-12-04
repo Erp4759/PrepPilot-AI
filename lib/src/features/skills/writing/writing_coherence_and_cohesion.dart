@@ -8,17 +8,18 @@ import '../widgets/skill_glass_card.dart';
 import '../actions/start_test.dart';
 import '../actions/submit_answers_and_check_results.dart';
 
-class WritingParaphrasingScreen extends StatefulWidget {
-  const WritingParaphrasingScreen({super.key});
+class WritingCoherenceAndCohesionScreen extends StatefulWidget {
+  const WritingCoherenceAndCohesionScreen({super.key});
 
-  static const routeName = '/writing_paraphrasing';
+  static const routeName = '/writing_essay_structures';
 
   @override
-  State<WritingParaphrasingScreen> createState() =>
-      _WritingParaphrasingScreenState();
+  State<WritingCoherenceAndCohesionScreen> createState() =>
+      _WritingCoherenceAndCohesionScreenState();
 }
 
-class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
+class _WritingCoherenceAndCohesionScreenState
+    extends State<WritingCoherenceAndCohesionScreen> {
   TestState _testState = TestState.initial;
   Difficulty _selectedDifficulty = Difficulty.band_5;
   Timer? _timer;
@@ -74,7 +75,7 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
       final testMap = await StartTest().execute(
         difficulty: _selectedDifficulty,
         testType: TestType.writing,
-        moduleType: WritingModuleType.paraphrasing,
+        moduleType: WritingModuleType.coherence_and_cohesion,
       );
 
       setState(() {
@@ -91,7 +92,6 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
         _startTimer();
       });
     } catch (e) {
-      // Handle error (maybe show a snackbar and go back)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error starting test: $e')),
@@ -384,7 +384,7 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
           ),
           const SizedBox(width: 12),
           const Text(
-            'Paraphrasing',
+            'Essay Structures',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ],

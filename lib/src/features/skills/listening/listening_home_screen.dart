@@ -101,10 +101,10 @@ class ListeningHomeScreen extends StatelessWidget {
                         // Skills grid
                         _SkillCard(
                           title: 'Focusing on distractors',
-                          subtitle: 'Get the main idea quickly',
+                          subtitle: 'Identify the correct answer',
                           description:
-                              'Learn to read quickly to understand the general meaning and main ideas without focusing on details',
-                          icon: Icons.flash_on,
+                              'Learn to distinguish between the correct answer and misleading information designed to trick you',
+                          icon: Icons.center_focus_strong,
                           gradient: const [
                             Color(0xFF6366F1),
                             Color(0xFF8B5CF6),
@@ -123,10 +123,10 @@ class ListeningHomeScreen extends StatelessWidget {
 
                         _SkillCard(
                           title: 'Note-taking',
-                          subtitle: 'Find specific information',
+                          subtitle: 'Capture key details',
                           description:
-                              'Practice looking for specific facts, numbers, names, or dates by moving your eyes quickly across the text',
-                          icon: Icons.search,
+                              'Practice writing down essential information like names, numbers, and dates while listening to audio',
+                          icon: Icons.edit_note,
                           gradient: const [
                             Color(0xFF2C8FFF),
                             Color(0xFF06B6D4),
@@ -144,9 +144,9 @@ class ListeningHomeScreen extends StatelessWidget {
 
                         _SkillCard(
                           title: 'Predicting answers',
-                          subtitle: 'Read between the lines',
+                          subtitle: 'Anticipate what comes next',
                           description:
-                              'Develop the ability to understand implied meanings and draw conclusions from context clues',
+                              'Develop the skill to guess the type of information needed before listening, based on context clues',
                           icon: Icons.psychology,
                           gradient: const [
                             Color(0xFF10B981),
@@ -162,64 +162,6 @@ class ListeningHomeScreen extends StatelessWidget {
                           },
                         ),
                         const SizedBox(height: 24),
-
-                        // Progress overview
-                        _GlassCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF82CEFF),
-                                          Color(0xFFB78DFF),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Icon(
-                                      Icons.analytics_outlined,
-                                      color: Colors.white,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  const Text(
-                                    'Your Progress',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              _ProgressItem(
-                                skill: 'Focusing on distractors',
-                                progress: 0.0,
-                                color: const Color(0xFF6366F1),
-                              ),
-                              const SizedBox(height: 10),
-                              _ProgressItem(
-                                skill: 'Note-taking',
-                                progress: 0.0,
-                                color: const Color(0xFF2C8FFF),
-                              ),
-                              const SizedBox(height: 10),
-                              _ProgressItem(
-                                skill: 'Predicting answers',
-                                progress: 0.0,
-                                color: const Color(0xFF10B981),
-                              ),                              
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
 
                         // Tips section
                         _GlassCard(
@@ -257,19 +199,19 @@ class ListeningHomeScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 16),
                               _TipItem(
-                                '📚 Practice each skill regularly for improvement',
+                                '🎧 Listen to various English accents regularly',
                               ),
                               const SizedBox(height: 8),
                               _TipItem(
-                                '⏱️ Time yourself to build speed and efficiency',
+                                '📝 Read the questions carefully before the audio starts',
                               ),
                               const SizedBox(height: 8),
                               _TipItem(
-                                '🎯 Focus on understanding, not just reading',
+                                '⚠️ Watch out for synonyms and paraphrasing',
                               ),
                               const SizedBox(height: 8),
                               _TipItem(
-                                '✨ Combine skills for comprehensive reading',
+                                '🚫 Don\'t get stuck on a missed answer; move on',
                               ),
                             ],
                           ),
@@ -298,17 +240,6 @@ class ListeningHomeScreen extends StatelessWidget {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature coming soon!'),
-        backgroundColor: const Color(0xFF2C8FFF),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -529,71 +460,6 @@ class _SkillCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _ProgressItem extends StatelessWidget {
-  const _ProgressItem({
-    required this.skill,
-    required this.progress,
-    required this.color,
-  });
-
-  final String skill;
-  final double progress;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              skill,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            Text(
-              '${(progress * 100).toInt()}%',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            height: 8,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: progress,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [color, color.withOpacity(0.7)],
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

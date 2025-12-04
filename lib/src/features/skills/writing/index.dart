@@ -1,4 +1,4 @@
 export 'writing_home_screen.dart';
-export 'writing_essay_structures.dart';
-export 'writing_paraphrasing.dart' hide TestState;
-export 'writing_linking_devices.dart' hide TestState;
+export 'writing_coherence_and_cohesion.dart';
+export 'writing_paraphrasing.dart';
+export 'writing_task_response.dart';
