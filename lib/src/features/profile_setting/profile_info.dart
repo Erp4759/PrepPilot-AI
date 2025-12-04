@@ -288,7 +288,8 @@ class _SkillCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final int? lvl = int.tryParse(level);
     final double fillFraction = (lvl != null && lvl > 0) ? (lvl.clamp(1, 5) / 5.0) : 0.0;
-    final String label = (lvl != null && lvl > 0) ? _labelForLevel(lvl) : '-';
+    final bool hasValidLevel = lvl != null && lvl > 0;
+    final String label = hasValidLevel ? _labelForLevel(lvl!) : 'No valid results yet';
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -353,29 +354,19 @@ class _SkillCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                // Label on top-right of the bar
-                Positioned.fill(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          label,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            shadows: [Shadow(blurRadius: 4, color: Colors.black26, offset: Offset(0, 1))],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ],
             );
           }),
+          const SizedBox(height: 8),
+          // Label below the bar (or message when no valid results)
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: hasValidLevel ? FontWeight.w600 : FontWeight.w400,
+              color: hasValidLevel ? Colors.black87 : Colors.grey[600],
+            ),
+          ),
         ],
       ),
     );

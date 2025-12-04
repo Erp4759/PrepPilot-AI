@@ -336,7 +336,7 @@ void _showChangePasswordDialog(BuildContext context) {
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 14),
                 ElevatedButton(
                   onPressed: () async {
                     setState(() {

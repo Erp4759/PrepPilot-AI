@@ -30,7 +30,7 @@ Future<FeedbackSummary> computeLearningLevelAndPainPoints(String userId) async {
     // 1) Fetch user's results and test metadata.
     final resultsResp = await supabase
         .from('results')
-        .select('result_id, score, total_points, tests(test_id, test_type, module_type, difficulty)')
+        .select('result_id, score, total_points, tests(test_id, test_types, difficulty)')
         .eq('user_id', userId);
 
     final results = (resultsResp as List).cast<Map<String, dynamic>>();
@@ -53,13 +53,12 @@ Future<FeedbackSummary> computeLearningLevelAndPainPoints(String userId) async {
     final Map<String, List<double>> moduleContribs = {}; // module -> list of contrib values
 
     // find maxDifficulty among user's tests (avoid division by zero)
-    double maxDifficulty = 0.0;
+    double maxDifficulty = 6.0;
     for (final r in results) {
       final tests = r['tests'] as Map<String, dynamic>?;
       final int difficulty = (tests != null && tests['difficulty'] != null) ? (tests['difficulty'] as int) : 0;
       if (difficulty > maxDifficulty) maxDifficulty = difficulty.toDouble();
     }
-    if (maxDifficulty <= 0) maxDifficulty = 1.0;
 
     // compute contrib per test and collect per-module
     for (final r in results) {
@@ -67,13 +66,16 @@ Future<FeedbackSummary> computeLearningLevelAndPainPoints(String userId) async {
       final int totalPoints = (r['total_points'] as int?) ?? 0;
       final tests = r['tests'] as Map<String, dynamic>?;
       final int difficulty = (tests != null && tests['difficulty'] != null) ? (tests['difficulty'] as int) : 0;
-      final String moduleType = (tests != null && tests['module_type'] != null) ? (tests['module_type'] as String) : 'unknown';
+      // Use test_type (reading/writing/listening/speaking) as the grouping key
+      final String testType = (tests != null && tests['test_types'] != null) ? (tests['test_types'] as String) : 'unknown';
 
       final double weight = difficulty / maxDifficulty;
       final double normalizedScore = totalPoints > 0 ? (score / totalPoints) : 0.0;
-      final double contrib = weight * normalizedScore; // 0..1
+      final double clampedNormalizedScore = normalizedScore > 1.0 ? 1.0 : normalizedScore;
+      final double contrib = weight * clampedNormalizedScore; // 0..1
 
-      moduleContribs.putIfAbsent(moduleType, () => []).add(contrib);
+      // group by test_type rather than module_type
+      moduleContribs.putIfAbsent(testType, () => []).add(contrib);
     }
 
     // Compute per-module learning levels using the user's formula
@@ -89,12 +91,13 @@ Future<FeedbackSummary> computeLearningLevelAndPainPoints(String userId) async {
 
     // Update user's difficulty fields in `users` table based on computed levels.
     try {
+      // Map test_type -> intermediate column map. We store `writing` level and
+      // later map it to the `scanning_difficulty` user column (no `scanning` test_type).
       final Map<String, int> columnMap = {
         'reading': learningLevels['reading'] ?? 0,
         'listening': learningLevels['listening'] ?? 0,
         'speaking': learningLevels['speaking'] ?? 0,
-        // prefer 'scanning' if present; if only 'writing' exists map it to scanning_difficulty
-        'scanning': learningLevels['scanning'] ?? learningLevels['writing'] ?? 0,
+        'writing': learningLevels['writing'] ?? 0,
       };
 
       // build update payload only for non-zero values
@@ -102,7 +105,8 @@ Future<FeedbackSummary> computeLearningLevelAndPainPoints(String userId) async {
       if ((columnMap['reading'] ?? 0) > 0) updateData['reading_difficulty'] = columnMap['reading'];
       if ((columnMap['listening'] ?? 0) > 0) updateData['listening_difficulty'] = columnMap['listening'];
       if ((columnMap['speaking'] ?? 0) > 0) updateData['speaking_difficulty'] = columnMap['speaking'];
-      if ((columnMap['scanning'] ?? 0) > 0) updateData['scanning_difficulty'] = columnMap['scanning'];
+  
+      if ((columnMap['writing'] ?? 0) > 0) updateData['writing_difficulty'] = columnMap['writing'];
 
       if (updateData.isNotEmpty) {
         await supabase.from('users').update(updateData).eq('user_id', userId);
