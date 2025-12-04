@@ -28,16 +28,24 @@ class _PrepPilotAppState extends State<PrepPilotApp> {
   // Stored app-wide font size loaded from DB (default 16)
   int appFontSize = 16;
   int isDark = 0;
+  String _initialRoute = '/home';
 
   // MediaQuery scale from this value so existing UX is preserved.
   // Keep previous default (fontSize 16 -> scale 1.2). Compute proportional
   // scale and clamp to a reasonable range to avoid layout breakage.
   double get _computedScale => (appFontSize / 16.0);
 
-
   @override
   void initState() {
     super.initState();
+
+    final authUser = supabase.auth.currentUser;
+    if (authUser == null) {
+      _initialRoute = LoginScreen.routeName;
+    } else {
+      _initialRoute = '/home';
+    }
+
     _loadFontSize();
     // Listen for changes made in settings and update scale live
     appFontSizeNotifier.addListener(_onAppFontSizeChanged);
@@ -49,6 +57,23 @@ class _PrepPilotAppState extends State<PrepPilotApp> {
         // When authentication state changes (e.g., signed in), reload font size
         // We don't inspect event details here; simply attempt to refresh settings.
         _loadFontSize();
+
+        // If the user signs out, navigate to the LoginScreen.
+        // If the user is signed out/expired, 'event.session' is null.
+        if (event.session == null && mounted) {
+          // Use a small delay to ensure the MaterialApp is fully built before navigating
+          Future.delayed(Duration.zero, () {
+            // Check if the current route is not already the login screen to avoid errors
+            if (ModalRoute.of(context)?.settings.name !=
+                LoginScreen.routeName) {
+              // Push the login screen and remove all other routes below it (like the home page)
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                LoginScreen.routeName,
+                (route) => false,
+              );
+            }
+          });
+        }
       });
     } catch (_) {
       // ignore if listener API is not available
@@ -118,10 +143,26 @@ class _PrepPilotAppState extends State<PrepPilotApp> {
         // 앱 설정에서 다크 모드라면 색상 반전 필터 적용
         return ColorFiltered(
           colorFilter: const ColorFilter.matrix([
-            -0.8,    0,    0,  0, 235, 
-            0, -0.8,    0,  0, 235,
-            0,    0, -0.8,  0, 235,
-            0,    0,    0,  1,   0,
+            -0.8,
+            0,
+            0,
+            0,
+            235,
+            0,
+            -0.8,
+            0,
+            0,
+            235,
+            0,
+            0,
+            -0.8,
+            0,
+            235,
+            0,
+            0,
+            0,
+            1,
+            0,
           ]),
           child: wrappedChild,
         );
@@ -131,7 +172,7 @@ class _PrepPilotAppState extends State<PrepPilotApp> {
       theme: AppTheme.light,
       themeMode: ThemeMode.light,
       debugShowCheckedModeBanner: false,
-      home: const MainShell(),
+      initialRoute: _initialRoute,
       routes: {
         LoginScreen.routeName: (_) => const LoginScreen(),
         RegisterScreen.routeName: (_) => const RegisterScreen(),
@@ -157,7 +198,8 @@ class _PrepPilotAppState extends State<PrepPilotApp> {
 }
 
 // Global route observer used by screens that need to be aware of navigation events
-final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
+final RouteObserver<ModalRoute<void>> routeObserver =
+    RouteObserver<ModalRoute<void>>();
 
 // class _ProfileScreen extends StatelessWidget {
 //   const _ProfileScreen();

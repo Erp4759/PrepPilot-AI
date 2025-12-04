@@ -24,14 +24,30 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Login Failed 😔'),
+        content: Text(message),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Okay'),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
+      _showErrorDialog('Please fill both email and password fields.');
       return;
     }
 
@@ -46,9 +62,9 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
       ).pushReplacement(MaterialPageRoute(builder: (_) => const MainShell()));
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Login failed: $e')));
+      // 3. Replace SnackBar with the new dialog method for login failures
+      if (!mounted) return;
+      _showErrorDialog('Login failed: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -58,47 +74,57 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Login'),
-      ),
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       body: Stack(
         fit: StackFit.expand,
         children: [
           const _AuthBackdrop(),
           SingleChildScrollView(
-            child: GlassFormCard(
-              title: 'Welcome back',
-              footer: Row(
-                children: [
-                  const Text("Don't have an account?"),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () =>
-                        Navigator.of(context).pushReplacementNamed('/register'),
-                    child: const Text('Create one'),
-                  ),
-                ],
+            // Set the constraints to the full height of the viewport.
+            // This allows the Center widget inside to align the form vertically.
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height,
+                minWidth: MediaQuery.of(context).size.width,
               ),
-              children: [
-                GlassTextField(
-                  label: 'Email',
-                  keyboardType: TextInputType.emailAddress,
-                  controller: _emailController,
+              child: Center(
+                // The form card is now centered both horizontally and vertically.
+                child: GlassFormCard(
+                  title: 'Welcome back',
+                  footer: Row(
+                    mainAxisAlignment: MainAxisAlignment
+                        .center, // Center the footer row elements
+                    children: [
+                      const Text("Don't have an account?"),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pushReplacementNamed('/register'),
+                        child: const Text('Create one'),
+                      ),
+                    ],
+                  ),
+                  children: [
+                    GlassTextField(
+                      label: 'Email',
+                      keyboardType: TextInputType.emailAddress,
+                      controller: _emailController,
+                    ),
+                    const SizedBox(height: 12),
+                    GlassTextField(
+                      label: 'Password',
+                      obscure: true,
+                      controller: _passwordController,
+                    ),
+                    const SizedBox(height: 16),
+                    GlassPrimaryButton(
+                      label: _isLoading ? 'Signing in...' : 'Sign in',
+                      onPressed: _isLoading ? null : () async => await _login(),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                GlassTextField(
-                  label: 'Password',
-                  obscure: true,
-                  controller: _passwordController,
-                ),
-                const SizedBox(height: 16),
-                GlassPrimaryButton(
-                  label: _isLoading ? 'Signing in...' : 'Sign in',
-                  onPressed: _isLoading ? null : () async => await _login(),
-                ),
-              ],
+              ),
             ),
           ),
         ],
