@@ -1,7 +1,10 @@
 import 'dart:ui';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'models/listening_models.dart';
+import '../models/test_properties.dart';
+import '../widgets/skill_settings_dialog.dart';
+import '../widgets/skill_loading_screen.dart';
+import '../widgets/skill_glass_card.dart';
 
 class ListeningNoteTakingScreen extends StatefulWidget {
   const ListeningNoteTakingScreen({super.key});
@@ -16,8 +19,7 @@ class ListeningNoteTakingScreen extends StatefulWidget {
 class _ListeningNoteTakingScreenState
     extends State<ListeningNoteTakingScreen> {
   TestState _testState = TestState.initial;
-  PassageLength _selectedLength = PassageLength.medium;
-  Difficulty _selectedDifficulty = Difficulty.b1;
+  Difficulty _selectedDifficulty = Difficulty.band_5;
 
   // Test data
   List<_BlankQuestion>? _questions;
@@ -51,12 +53,10 @@ class _ListeningNoteTakingScreenState
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => _SettingsDialog(
-        selectedLength: _selectedLength,
+      builder: (context) => SkillSettingsDialog(
         selectedDifficulty: _selectedDifficulty,
-        onStart: (length, difficulty) {
+        onStart: (difficulty) {
           setState(() {
-            _selectedLength = length;
             _selectedDifficulty = difficulty;
           });
           Navigator.of(context).pop();
@@ -202,59 +202,12 @@ class _ListeningNoteTakingScreenState
       case TestState.initial:
         return const SizedBox();
       case TestState.loading:
-        return _buildLoadingScreen();
+        return const SkillLoadingScreen();
       case TestState.test:
         return _buildTestScreen();
       case TestState.results:
         return _buildResultsScreen();
     }
-  }
-
-  Widget _buildLoadingScreen() {
-    return Center(
-      child: _GlassCard(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Center(
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 3,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Preparing your test...',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'AI is generating note-taking exercise',
-              style: TextStyle(
-                fontSize: 14,
-                color: const Color(0xFF5C6470).withOpacity(0.8),
-              ),
-            ),
-            const SizedBox(height: 20),
-            _LoadingProgressIndicator(label: 'Setting difficulty...', value: 0.33),
-            const SizedBox(height: 12),
-            _LoadingProgressIndicator(label: 'Generating audio...', value: 0.66),
-            const SizedBox(height: 12),
-            _LoadingProgressIndicator(label: 'Creating blanks...', value: 1.0),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildTestScreen() {
@@ -274,7 +227,7 @@ class _ListeningNoteTakingScreenState
               children: [
                 const SizedBox(height: 16),
                 // 타이머
-                _GlassCard(
+                SkillGlassCard(
                   child: Row(
                     children: [
                       Container(
@@ -391,7 +344,7 @@ class _ListeningNoteTakingScreenState
                 ),
                 const SizedBox(height: 48),
                 // 지시사항
-                _GlassCard(
+                SkillGlassCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -435,7 +388,7 @@ class _ListeningNoteTakingScreenState
       final question = _questions![index];
       return Padding(
         padding: const EdgeInsets.only(bottom: 16),
-        child: _GlassCard(
+        child: SkillGlassCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -588,7 +541,7 @@ class _ListeningNoteTakingScreenState
     final isPassed = percentage >= 70;
 
     return Center(
-      child: _GlassCard(
+      child: SkillGlassCard(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -706,7 +659,7 @@ class _ListeningNoteTakingScreenState
               },
             ),
             const SizedBox(height: 24),
-            _PrimaryButton(
+            SkillPrimaryButton(
               label: 'Try Another',
               onTap: _restartTest,
               icon: Icons.refresh,
@@ -821,100 +774,6 @@ class _Blob extends StatelessWidget {
   }
 }
 
-class _GlassCard extends StatelessWidget {
-  const _GlassCard({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.3),
-              width: 1.5,
-            ),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white.withOpacity(0.7),
-                Colors.white.withOpacity(0.4),
-              ],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
-
-class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({required this.label, required this.onTap, this.icon});
-
-  final String label;
-  final VoidCallback onTap;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF6366F1).withOpacity(0.3),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-              ],
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _SmallBackButton extends StatelessWidget {
   const _SmallBackButton({this.onTap});
 
@@ -951,327 +810,3 @@ class _SmallBackButton extends StatelessWidget {
   }
 }
 
-class _LoadingProgressIndicator extends StatelessWidget {
-  const _LoadingProgressIndicator({required this.label, required this.value});
-
-  final String label;
-  final double value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Color(0xFF5C6470),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(
-            value: value,
-            backgroundColor: const Color(0xFF6366F1).withOpacity(0.15),
-            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
-            minHeight: 6,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SettingsDialog extends StatefulWidget {
-  const _SettingsDialog({
-    required this.selectedLength,
-    required this.selectedDifficulty,
-    required this.onStart,
-    required this.onCancel,
-  });
-
-  final PassageLength selectedLength;
-  final Difficulty selectedDifficulty;
-  final Function(PassageLength, Difficulty) onStart;
-  final VoidCallback onCancel;
-
-  @override
-  State<_SettingsDialog> createState() => _SettingsDialogState();
-}
-
-class _SettingsDialogState extends State<_SettingsDialog> {
-  late PassageLength _length;
-  late Difficulty _difficulty;
-
-  @override
-  void initState() {
-    super.initState();
-    _length = widget.selectedLength;
-    _difficulty = widget.selectedDifficulty;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 500),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(32),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.3),
-                width: 1.5,
-              ),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withOpacity(0.8),
-                  Colors.white.withOpacity(0.5),
-                ],
-              ),
-            ),
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(
-                        Icons.note_alt_rounded,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Start Note-Taking?',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Configure your test settings',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF5C6470),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 28),
-                const Text(
-                  'Difficulty Level',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _SettingChip(
-                      label: 'A1',
-                      isSelected: _difficulty == Difficulty.a1,
-                      onTap: () =>
-                          setState(() => _difficulty = Difficulty.a1),
-                    ),
-                    _SettingChip(
-                      label: 'A2',
-                      isSelected: _difficulty == Difficulty.a2,
-                      onTap: () =>
-                          setState(() => _difficulty = Difficulty.a2),
-                    ),
-                    _SettingChip(
-                      label: 'B1',
-                      isSelected: _difficulty == Difficulty.b1,
-                      onTap: () =>
-                          setState(() => _difficulty = Difficulty.b1),
-                    ),
-                    _SettingChip(
-                      label: 'B2',
-                      isSelected: _difficulty == Difficulty.b2,
-                      onTap: () =>
-                          setState(() => _difficulty = Difficulty.b2),
-                    ),
-                    _SettingChip(
-                      label: 'C1',
-                      isSelected: _difficulty == Difficulty.c1,
-                      onTap: () =>
-                          setState(() => _difficulty = Difficulty.c1),
-                    ),
-                    _SettingChip(
-                      label: 'C2',
-                      isSelected: _difficulty == Difficulty.c2,
-                      onTap: () =>
-                          setState(() => _difficulty = Difficulty.c2),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _SettingChip(
-                  label: 'Adaptive (Based on your results)',
-                  icon: Icons.auto_awesome,
-                  isSelected: _difficulty == Difficulty.adaptive,
-                  onTap: () =>
-                      setState(() => _difficulty = Difficulty.adaptive),
-                  fullWidth: true,
-                ),
-                const SizedBox(height: 32),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _SecondaryButton(
-                        label: 'Cancel',
-                        onTap: widget.onCancel,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: _PrimaryButton(
-                        label: 'Start Test',
-                        onTap: () => widget.onStart(_length, _difficulty),
-                        icon: Icons.play_arrow,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SettingChip extends StatelessWidget {
-  const _SettingChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-    this.icon,
-    this.fullWidth = false,
-  });
-
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final IconData? icon;
-  final bool fullWidth;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          width: fullWidth ? double.infinity : null,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: isSelected
-                ? const LinearGradient(
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                  )
-                : null,
-            color: isSelected ? null : Colors.white.withOpacity(0.5),
-            border: Border.all(
-              color: isSelected
-                  ? Colors.transparent
-                  : Colors.black.withOpacity(0.1),
-              width: 1.5,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(
-                  icon,
-                  size: 18,
-                  color: isSelected ? Colors.white : const Color(0xFF6366F1),
-                ),
-                const SizedBox(width: 8),
-              ],
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? Colors.white : const Color(0xFF1E293B),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SecondaryButton extends StatelessWidget {
-  const _SecondaryButton({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            color: Colors.white.withOpacity(0.6),
-            border: Border.all(
-              color: const Color(0xFF6366F1).withOpacity(0.3),
-              width: 1.5,
-            ),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF6366F1),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
