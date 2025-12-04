@@ -16,6 +16,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     final viewport = MediaQuery.of(context).size.height;
     const topPad = 48.0;
     const bottomPad = 120.0;
+    Key _statsKey = UniqueKey();
+
+    Future<void> _refreshStats() async {
+      // Trigger a rebuild by changing the key
+      setState(() {
+        _statsKey = UniqueKey();
+      });
+    }
 
     return Scaffold(
       body: Stack(
@@ -32,10 +40,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   child: _GlassCard(
                     child: SizedBox(
                       height: viewport - (topPad + bottomPad),
-                      child: ScrollConfiguration(
-                        behavior: const _NoGlowScrollBehavior(),
-                        child: const SingleChildScrollView(
-                          child: _CardScrollContent(),
+                      child: RefreshIndicator(
+                        onRefresh: _refreshStats,
+                        color: const Color(0xFF2C8FFF),
+                        child: ScrollConfiguration(
+                          behavior: const _NoGlowScrollBehavior(),
+                          child: SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: _CardScrollContent(key: _statsKey),
+                          ),
                         ),
                       ),
                     ),
@@ -152,7 +165,8 @@ class _GlassCard extends StatelessWidget {
 }
 
 class _CardScrollContent extends StatelessWidget {
-  const _CardScrollContent();
+  const _CardScrollContent({super.key});
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;

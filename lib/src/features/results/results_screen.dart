@@ -72,13 +72,13 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                _GlassButton(
-                  label: 'See Past Mistakes',
-                  onTap: () =>
-                      Navigator.of(context).pushNamed('/past-mistakes'),
-                  fullWidth: true,
-                ),
+                // const SizedBox(height: 16),
+                // _GlassButton(
+                //   label: 'See Past Mistakes',
+                //   onTap: () =>
+                //       Navigator.of(context).pushNamed('/past-mistakes'),
+                //   fullWidth: true,
+                // ),
                 const SizedBox(height: 16),
                 Expanded(
                   child: _GlassCard(
