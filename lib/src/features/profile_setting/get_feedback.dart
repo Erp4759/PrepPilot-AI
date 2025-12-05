@@ -29,9 +29,9 @@ Future<FeedbackSummary> computeLearningLevelAndPainPoints(String userId) async {
   try {
     // 1) Fetch user's results and test metadata.
     final resultsResp = await supabase
-        .from('results')
-        .select('result_id, score, total_points, tests(test_id, test_types, difficulty)')
-        .eq('user_id', userId);
+      .from('results')
+      .select('result_id, score, total_points, tests(test_id, test_type, difficulty)')
+      .eq('user_id', userId);
 
     final results = (resultsResp as List).cast<Map<String, dynamic>>();
 
@@ -53,21 +53,18 @@ Future<FeedbackSummary> computeLearningLevelAndPainPoints(String userId) async {
     final Map<String, List<double>> moduleContribs = {}; // module -> list of contrib values
 
     // find maxDifficulty among user's tests (avoid division by zero)
-    double maxDifficulty = 6.0;
-    for (final r in results) {
-      final tests = r['tests'] as Map<String, dynamic>?;
-      final int difficulty = (tests != null && tests['difficulty'] != null) ? (tests['difficulty'] as int) : 0;
-      if (difficulty > maxDifficulty) maxDifficulty = difficulty.toDouble();
-    }
+    double maxDifficulty;
 
-    // compute contrib per test and collect per-module
+   // compute contrib per test and collect per-module
     for (final r in results) {
       final int score = (r['score'] as int?) ?? 0;
       final int totalPoints = (r['total_points'] as int?) ?? 0;
       final tests = r['tests'] as Map<String, dynamic>?;
       final int difficulty = (tests != null && tests['difficulty'] != null) ? (tests['difficulty'] as int) : 0;
       // Use test_type (reading/writing/listening/speaking) as the grouping key
-      final String testType = (tests != null && tests['test_types'] != null) ? (tests['test_types'] as String) : 'unknown';
+      final String testType = (tests != null && tests['test_type'] != null) ? (tests['test_type'] as String) : 'unknown';
+      if(testType == 'writing' || testType == 'listening') maxDifficulty = 9.0;
+      else maxDifficulty = 6.0;
 
       final double weight = difficulty / maxDifficulty;
       final double normalizedScore = totalPoints > 0 ? (score / totalPoints) : 0.0;
@@ -106,7 +103,7 @@ Future<FeedbackSummary> computeLearningLevelAndPainPoints(String userId) async {
       if ((columnMap['listening'] ?? 0) > 0) updateData['listening_difficulty'] = columnMap['listening'];
       if ((columnMap['speaking'] ?? 0) > 0) updateData['speaking_difficulty'] = columnMap['speaking'];
   
-      if ((columnMap['writing'] ?? 0) > 0) updateData['writing_difficulty'] = columnMap['writing'];
+      if ((columnMap['writing'] ?? 0) > 0) updateData['scanning_difficulty'] = columnMap['writing'];
 
       if (updateData.isNotEmpty) {
         await supabase.from('users').update(updateData).eq('user_id', userId);

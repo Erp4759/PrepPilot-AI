@@ -325,10 +325,10 @@ class _SettingScreenState extends State<SettingScreen> {
   void _updateThemeColor(Color color) {
     setState(() {
       _themeColor = color;
-        // Do NOT notify app immediately; Apply button will persist and notify.    });
-  });
-  }  }
-
+      // Do NOT notify app immediately; Apply button will persist and notify.
+    });
+  }
+}
 class _SmallBackButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final Color? bgColor;
