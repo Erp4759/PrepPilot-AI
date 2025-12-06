@@ -181,7 +181,7 @@ class _PrepPilotAppState extends State<PrepPilotApp> {
         '/skills': (_) => const SkillsMainScreen(),
         '/skills/listening': (_) => const ListeningHomeScreen(),
         '/skills/listening/listening_focusing_on_disctractors.dart': (_) =>
-            const ListeningFocusingOnDistractorsScreen(),
+            const ListeningGistListeningScreen(),
         '/skills/writing': (_) => const WritingHomeScreen(),
         WritingCoherenceAndCohesionScreen.routeName: (_) => 
             const WritingCoherenceAndCohesionScreen(),

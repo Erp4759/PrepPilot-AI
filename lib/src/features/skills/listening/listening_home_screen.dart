@@ -1,11 +1,13 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:prep_pilot_ai/src/features/skills/listening/listening_focusing_on_distractors.dart';
-import 'package:prep_pilot_ai/src/features/skills/listening/listening_note-taking.dart';
-import 'package:prep_pilot_ai/src/features/skills/listening/listening_predicting_answers.dart';
-export 'listening_focusing_on_distractors.dart';
-export 'listening_note-taking.dart';
-export 'listening_predicting_answers.dart';
+import 'package:prep_pilot_ai/src/features/skills/listening/listening_gist_listening.dart';
+import 'package:prep_pilot_ai/src/features/skills/listening/listening_note_taking.dart';
+import 'package:prep_pilot_ai/src/features/skills/listening/listening_detail_listening.dart';
+import 'package:prep_pilot_ai/src/features/skills/listening/listening_inference.dart';
+export 'listening_gist_listening.dart';
+export 'listening_note_taking.dart';
+export 'listening_detail_listening.dart';
+export 'listening_inference.dart';
 
 class ListeningHomeScreen extends StatelessWidget {
   const ListeningHomeScreen({super.key});
@@ -100,11 +102,11 @@ class ListeningHomeScreen extends StatelessWidget {
 
                         // Skills grid
                         _SkillCard(
-                          title: 'Focusing on distractors',
-                          subtitle: 'Identify the correct answer',
+                          title: 'Gist Listening',
+                          subtitle: 'Spot the right answer',
                           description:
-                              'Learn to distinguish between the correct answer and misleading information designed to trick you',
-                          icon: Icons.center_focus_strong,
+                              'Identify the correct information while filtering out misleading distractors designed to trick you',
+                          icon: Icons.filter_center_focus,
                           gradient: const [
                             Color(0xFF6366F1),
                             Color(0xFF8B5CF6),
@@ -113,7 +115,7 @@ class ListeningHomeScreen extends StatelessWidget {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (context) =>
-                                    const ListeningFocusingOnDistractorsScreen(),
+                                    const ListeningGistListeningScreen(),
                               ),
                             );
                           },
@@ -122,11 +124,33 @@ class ListeningHomeScreen extends StatelessWidget {
                         const SizedBox(height: 14),
 
                         _SkillCard(
-                          title: 'Note-taking',
-                          subtitle: 'Capture key details',
+                          title: 'Detail Listening',
+                          subtitle: 'Anticipate context',
                           description:
-                              'Practice writing down essential information like names, numbers, and dates while listening to audio',
-                          icon: Icons.edit_note,
+                              'Use context clues to predict the type of information needed before you listen',
+                          icon: Icons.lightbulb_circle,
+                          gradient: const [
+                            Color(0xFF10B981),
+                            Color(0xFF14B8A6),
+                          ],
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const ListeningDetailListeningScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        
+                        const SizedBox(height: 14),
+
+                        _SkillCard(
+                          title: 'Note-taking',
+                          subtitle: 'Capture key facts',
+                          description:
+                              'Practice writing down essential details like names, numbers, and dates accurately',
+                          icon: Icons.edit_document,
                           gradient: const [
                             Color(0xFF2C8FFF),
                             Color(0xFF06B6D4),
@@ -143,20 +167,20 @@ class ListeningHomeScreen extends StatelessWidget {
                         const SizedBox(height: 14),
 
                         _SkillCard(
-                          title: 'Predicting answers',
-                          subtitle: 'Anticipate what comes next',
+                          title: 'Inference',
+                          subtitle: 'Understand implied meaning',
                           description:
-                              'Develop the skill to guess the type of information needed before listening, based on context clues',
-                          icon: Icons.psychology,
+                              'Draw conclusions and understand speaker attitudes beyond the literal words',
+                          icon: Icons.auto_awesome,
                           gradient: const [
-                            Color(0xFF10B981),
-                            Color(0xFF14B8A6),
+                            Color(0xFFF59E0B),
+                            Color(0xFFD97706),
                           ],
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (context) =>
-                                    const ListeningPredictingAnswersScreen(),
+                                    const ListeningInferenceScreen(),
                               ),
                             );
                           },

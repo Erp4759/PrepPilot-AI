@@ -11,7 +11,7 @@ import '../actions/submit_answers_and_check_results.dart';
 class WritingCoherenceAndCohesionScreen extends StatefulWidget {
   const WritingCoherenceAndCohesionScreen({super.key});
 
-  static const routeName = '/writing_essay_structures';
+  static const routeName = '/writing_coherence_and_cohesion';
 
   @override
   State<WritingCoherenceAndCohesionScreen> createState() =>
@@ -61,7 +61,10 @@ class _WritingCoherenceAndCohesionScreenState
           Navigator.of(context).pop();
           _startTest();
         },
-        onCancel: () => Navigator.of(context).pop(),
+        onCancel: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).pop();
+        },
       ),
     );
   }
@@ -177,6 +180,13 @@ class _WritingCoherenceAndCohesionScreenState
         children: [
           const _GradientBackground(),
           SafeArea(child: _buildContent()),
+          if (_isSubmitting)
+            Container(
+              color: Colors.black.withOpacity(0.5),
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+            ),
         ],
       ),
     );

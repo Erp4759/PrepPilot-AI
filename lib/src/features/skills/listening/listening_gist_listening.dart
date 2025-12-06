@@ -1,49 +1,81 @@
 import 'dart:ui';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import '../models/test_properties.dart';
 import '../widgets/skill_settings_dialog.dart';
 import '../widgets/skill_loading_screen.dart';
 import '../widgets/skill_glass_card.dart';
+import '../actions/start_test.dart';
+import '../actions/submit_answers_and_check_results.dart';
 
-class ListeningFocusingOnDistractorsScreen extends StatefulWidget {
-  const ListeningFocusingOnDistractorsScreen({super.key});
+class ListeningGistListeningScreen extends StatefulWidget {
+  const ListeningGistListeningScreen({super.key});
 
-  static const routeName = '/listening_focusing_on_distractors';
+  static const routeName = '/listening_gist_listening';
 
   @override
-  State<ListeningFocusingOnDistractorsScreen> createState() =>
-      _ListeningFocusingOnDistractorsScreenState();
+  State<ListeningGistListeningScreen> createState() =>
+      _ListeningGistListeningScreenState();
 }
 
-class _ListeningFocusingOnDistractorsScreenState
-    extends State<ListeningFocusingOnDistractorsScreen> {
+class _ListeningGistListeningScreenState
+    extends State<ListeningGistListeningScreen> {
   TestState _testState = TestState.initial;
   Difficulty _selectedDifficulty = Difficulty.band_5;
 
   // Test data
-  String? _generatedQuestion;
-  List<String>? _generatedOptions;
-  int? _correctAnswerIndex;
-  int? _selectedAnswerIndex;
-
-  // Timer
-  Timer? _timer;
-  int _remainingSeconds = 0;
-  int _totalSeconds = 0;
+  static const int _totalSeconds = 120;
+  int _remainingSeconds = _totalSeconds;
   bool _isPlaying = false;
+  bool _isSubmitting = false;
+  Timer? _timer;
+
+  // Backend Data
+  Map<String, dynamic>? _testData;
+  List<dynamic> _questions = [];
+  final Map<String, TextEditingController> _controllers = {};
+  Map<String, dynamic>? _resultData;
+
+  // TTS
+  final FlutterTts _flutterTts = FlutterTts();
+  bool _isTtsInitialized = false;
 
   @override
   void initState() {
     super.initState();
+    _initTts();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showSettingsDialog();
+    });
+  }
+
+  Future<void> _initTts() async {
+    await _flutterTts.setLanguage("en-US");
+    await _flutterTts.setSpeechRate(0.5);
+    await _flutterTts.setVolume(1.0);
+    await _flutterTts.setPitch(1.0);
+
+    _flutterTts.setCompletionHandler(() {
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+        });
+      }
+    });
+
+    setState(() {
+      _isTtsInitialized = true;
     });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _flutterTts.stop();
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -73,80 +105,131 @@ class _ListeningFocusingOnDistractorsScreenState
       _testState = TestState.loading;
     });
 
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final testMap = await StartTest().execute(
+        difficulty: _selectedDifficulty,
+        testType: TestType.listening,
+        moduleType: ListeningModuleType.gist_listening,
+      );
 
-    _generateMockTest();
-    _startTimer();
+      setState(() {
+        _testData = testMap;
+        _questions = testMap['questions'] ?? [];
+        
+        // Initialize controllers for each question
+        _controllers.clear();
+        for (var q in _questions) {
+          _controllers[q['question_id']] = TextEditingController();
+        }
 
-    setState(() {
-      _testState = TestState.test;
-    });
-  }
-
-  void _generateMockTest() {
-    _generatedQuestion =
-        'What is the main topic discussed in the listening passage?';
-    _generatedOptions = [
-      'Climate change and environmental protection',
-      'The history of ancient civilizations',
-      'Modern technology and artificial intelligence',
-      'The importance of healthy eating habits',
-      'Travel tips for international tourists',
-    ];
-    _correctAnswerIndex = 2; // 정답은 3번
-    _totalSeconds = 120; // 2분
-    _remainingSeconds = _totalSeconds;
-    _selectedAnswerIndex = null;
+        _testState = TestState.test;
+        _startTimer();
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error starting test: $e')),
+        );
+        Navigator.of(context).pop();
+      }
+    }
   }
 
   void _startTimer() {
     _timer?.cancel();
+    setState(() {
+      _remainingSeconds = _totalSeconds;
+    });
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
         if (_remainingSeconds > 0) {
           _remainingSeconds--;
         } else {
           _timer?.cancel();
-          _submitAnswers();
+          _submitTest();
         }
       });
     });
   }
 
   Future<void> _playAudio() async {
-    setState(() {
-      _isPlaying = true;
-    });
+    if (!_isTtsInitialized || _testData == null) return;
 
-    // 실제로는 여기서 LLM으로 생성된 오디오 파일을 재생
-    // 예: await audioPlayer.play('generated_audio.mp3');
-    await Future.delayed(const Duration(seconds: 3));
+    final textToSpeak = _testData!['text'] as String?;
+    if (textToSpeak == null || textToSpeak.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No audio content available.')),
+      );
+      return;
+    }
 
-    setState(() {
-      _isPlaying = false;
-    });
+    if (_isPlaying) {
+      await _flutterTts.stop();
+      setState(() {
+        _isPlaying = false;
+      });
+    } else {
+      setState(() {
+        _isPlaying = true;
+      });
+      await _flutterTts.speak(textToSpeak);
+    }
   }
 
-  void _submitAnswers() {
+  Future<void> _submitTest() async {
     _timer?.cancel();
+    _flutterTts.stop();
+
     setState(() {
-      _testState = TestState.results;
+      _isSubmitting = true;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Analyzing your answer...'),
-        backgroundColor: const Color(0xFF10B981),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    try {
+      final answers = <String, String>{};
+      _controllers.forEach((questionId, controller) {
+        answers[questionId] = controller.text;
+      });
+
+      final testId = _testData!['test_id'];
+      final submissionResult = await SubmitAnswersAndCheckResults().submitAnswers(
+        testId: testId,
+        answers: answers,
+      );
+
+      final resultId = submissionResult['result_id'];
+      final fullResult = await SubmitAnswersAndCheckResults().fetchResult(
+        resultId: resultId,
+      );
+
+      setState(() {
+        _resultData = fullResult;
+        _testState = TestState.results;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error submitting test: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
   }
 
   void _restartTest() {
+    _flutterTts.stop();
     setState(() {
       _testState = TestState.initial;
-      _selectedAnswerIndex = null;
+      _controllers.clear();
+      _questions = [];
+      _testData = null;
+      _resultData = null;
+      _isPlaying = false;
+      _isSubmitting = false;
     });
     _showSettingsDialog();
   }
@@ -159,25 +242,38 @@ class _ListeningFocusingOnDistractorsScreenState
         children: [
           const _GradientBackground(),
           SafeArea(child: _buildContent()),
+          if (_isSubmitting)
+            Container(
+              color: Colors.black.withOpacity(0.5),
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+            ),
         ],
       ),
     );
   }
 
   Widget _buildContent() {
-    switch (_testState) {
-      case TestState.initial:
-        return const SizedBox();
-      case TestState.loading:
-        return const SkillLoadingScreen();
-      case TestState.test:
-        return _buildTestScreen();
-      case TestState.results:
-        return _buildResultsScreen();
+    if (_testState == TestState.initial) {
+      return const SizedBox.shrink();
     }
+    if (_testState == TestState.loading) {
+      return const SkillLoadingScreen();
+    }
+    if (_testState == TestState.results && _resultData != null) {
+      return _buildResultsScreen();
+    }
+
+    return _buildTestScreen();
   }
 
   Widget _buildTestScreen() {
+    final minutes = _remainingSeconds ~/ 60;
+    final seconds = _remainingSeconds % 60;
+    final progress = _remainingSeconds / _totalSeconds;
+    final isLowTime = _remainingSeconds < 30;
+
     return Column(
       children: [
         _buildHeader(),
@@ -188,12 +284,12 @@ class _ListeningFocusingOnDistractorsScreenState
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 16),
-                _buildTimerCard(),
+                _buildTimerCard(minutes, seconds, progress, isLowTime),
                 const SizedBox(height: 40),
-                // 큰 스피커 아이콘
+                // Audio Player
                 Center(
                   child: GestureDetector(
-                    onTap: _isPlaying ? null : _playAudio,
+                    onTap: _playAudio,
                     child: Container(
                       width: 120,
                       height: 120,
@@ -244,29 +340,17 @@ class _ListeningFocusingOnDistractorsScreenState
                   ),
                 ),
                 const SizedBox(height: 48),
-                // 질문
-                SkillGlassCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _generatedQuestion!,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          height: 1.5,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // 선택지 (5개)
-                ..._buildOptions(),
+                
+                // Questions
+                ..._questions.map((q) => _buildQuestionCard(q)),
+
                 const SizedBox(height: 32),
-                // 제출 버튼
-                _buildSubmitButton(),
+                // Submit Button
+                SkillPrimaryButton(
+                  label: 'Submit',
+                  onTap: _submitTest,
+                  icon: Icons.check,
+                ),
                 const SizedBox(height: 24),
               ],
             ),
@@ -276,137 +360,78 @@ class _ListeningFocusingOnDistractorsScreenState
     );
   }
 
-  List<Widget> _buildOptions() {
-    return List.generate(_generatedOptions!.length, (index) {
-      final isSelected = _selectedAnswerIndex == index;
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              setState(() {
-                _selectedAnswerIndex = index;
-              });
-            },
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFF6366F1).withOpacity(0.1)
-                    : Colors.white.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isSelected
-                      ? const Color(0xFF6366F1)
-                      : Colors.black.withOpacity(0.08),
-                  width: isSelected ? 2.5 : 1.5,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isSelected
-                            ? const Color(0xFF6366F1)
-                            : const Color(0xFF5C6470),
-                        width: 2,
-                      ),
-                      color: isSelected
-                          ? const Color(0xFF6366F1)
-                          : Colors.transparent,
-                    ),
-                    child: isSelected
-                        ? const Icon(
-                            Icons.check,
-                            size: 16,
-                            color: Colors.white,
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      _generatedOptions![index],
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: isSelected
-                            ? FontWeight.w700
-                            : FontWeight.w600,
-                        color: const Color(0xFF1E293B),
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
+  Widget _buildQuestionCard(Map<String, dynamic> question) {
+    final questionId = question['question_id'];
+    final questionText = question['question_text'];
+    final controller = _controllers[questionId];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: SkillGlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              questionText ?? 'Question',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1E293B),
+                height: 1.4,
               ),
             ),
-          ),
-        ),
-      );
-    });
-  }
-
-  Widget _buildSubmitButton() {
-    final isAnswered = _selectedAnswerIndex != null;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: isAnswered ? _submitAnswers : null,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: isAnswered
-                ? const LinearGradient(
-                    colors: [Color(0xFF10B981), Color(0xFF059669)],
-                  )
-                : const LinearGradient(
-                    colors: [Color(0xFFCBD5E1), Color(0xFFE2E8F0)],
-                  ),
-            boxShadow: isAnswered
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF10B981).withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.send_rounded,
-                color: isAnswered ? Colors.white : const Color(0xFF94A3B8),
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Submit Answer',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color:
-                      isAnswered ? Colors.white : const Color(0xFF94A3B8),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'Type your answer here...',
+                hintStyle: TextStyle(
+                  color: const Color(0xFF5C6470).withOpacity(0.5),
                 ),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.6),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: Colors.black.withOpacity(0.1),
+                    width: 1.5,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: Colors.black.withOpacity(0.08),
+                    width: 1.5,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF6366F1),
+                    width: 2,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.all(16),
               ),
-            ],
-          ),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1E293B),
+                height: 1.6,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildResultsScreen() {
-    final isCorrect = _selectedAnswerIndex == _correctAnswerIndex;
+    final score = _resultData!['score'];
+    final totalPoints = _resultData!['total_points'];
+    final feedbackText = _resultData!['feedback_text'];
+
     return Center(
       child: SkillGlassCard(
         child: Column(
@@ -417,34 +442,37 @@ class _ListeningFocusingOnDistractorsScreenState
               height: 80,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: isCorrect
-                      ? [const Color(0xFF10B981), const Color(0xFF059669)]
-                      : [const Color(0xFFEF4444), const Color(0xFFDC2626)],
+                  colors: [const Color(0xFF10B981), const Color(0xFF059669)],
                 ),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
-                isCorrect ? Icons.check_circle_outline : Icons.close,
+                Icons.check_circle_outline,
                 color: Colors.white,
                 size: 40,
               ),
             ),
             const SizedBox(height: 24),
             Text(
-              isCorrect ? 'Correct!' : 'Incorrect',
+              'Test Completed!',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
-                color: isCorrect
-                    ? const Color(0xFF10B981)
-                    : const Color(0xFFEF4444),
+                color: const Color(0xFF10B981),
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              isCorrect
-                  ? 'Great job! You identified the correct answer.'
-                  : 'The correct answer was: ${_generatedOptions![_correctAnswerIndex!]}',
+              'Score: $score / $totalPoints',
+              style: const TextStyle(
+                fontSize: 16,
+                color: Color(0xFF5C6470),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              feedbackText ?? 'No feedback available.',
               style: const TextStyle(
                 fontSize: 14,
                 color: Color(0xFF5C6470),
@@ -458,18 +486,18 @@ class _ListeningFocusingOnDistractorsScreenState
               onTap: _restartTest,
               icon: Icons.refresh,
             ),
+            const SizedBox(height: 16),
+            SkillSecondaryButton(
+              label: 'Back to Menu',
+              onTap: () => Navigator.of(context).pop(),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTimerCard() {
-    final minutes = _remainingSeconds ~/ 60;
-    final seconds = _remainingSeconds % 60;
-    final progress = _remainingSeconds / _totalSeconds;
-    final isLowTime = _remainingSeconds < 30;
-
+  Widget _buildTimerCard(int minutes, int seconds, double progress, bool isLowTime) {
     return SkillGlassCard(
       child: Row(
         children: [
@@ -543,7 +571,7 @@ class _ListeningFocusingOnDistractorsScreenState
           ),
           const SizedBox(width: 12),
           const Text(
-            'Focusing on Distractors',
+            'Gist Listening',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ],

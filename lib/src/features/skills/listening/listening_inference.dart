@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import '../models/test_properties.dart';
 import '../widgets/skill_settings_dialog.dart';
 import '../widgets/skill_loading_screen.dart';
@@ -8,39 +9,70 @@ import '../widgets/skill_glass_card.dart';
 import '../actions/start_test.dart';
 import '../actions/submit_answers_and_check_results.dart';
 
-class WritingParaphrasingScreen extends StatefulWidget {
-  const WritingParaphrasingScreen({super.key});
+class ListeningInferenceScreen extends StatefulWidget {
+  const ListeningInferenceScreen({super.key});
 
-  static const routeName = '/writing_paraphrasing';
+  static const routeName = '/listening_inference';
 
   @override
-  State<WritingParaphrasingScreen> createState() =>
-      _WritingParaphrasingScreenState();
+  State<ListeningInferenceScreen> createState() =>
+      _ListeningInferenceScreenState();
 }
 
-class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
+class _ListeningInferenceScreenState
+    extends State<ListeningInferenceScreen> {
   TestState _testState = TestState.initial;
   Difficulty _selectedDifficulty = Difficulty.band_5;
-  Timer? _timer;
-  static const int _totalSeconds = 600;
-  int _remainingSeconds = _totalSeconds;
-  bool _isSubmitting = false;
 
+  // Test data
+  static const int _totalSeconds = 300;
+  int _remainingSeconds = _totalSeconds;
+  bool _isPlaying = false;
+  bool _isSubmitting = false;
+  Timer? _timer;
+  
   // Backend Data
   Map<String, dynamic>? _testData;
   List<dynamic> _questions = [];
   final Map<String, TextEditingController> _controllers = {};
   Map<String, dynamic>? _resultData;
+  
+  // TTS
+  final FlutterTts _flutterTts = FlutterTts();
+  bool _isTtsInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _showSettingsDialog());
+    _initTts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showSettingsDialog();
+    });
+  }
+
+  Future<void> _initTts() async {
+    await _flutterTts.setLanguage("en-US");
+    await _flutterTts.setSpeechRate(0.5);
+    await _flutterTts.setVolume(1.0);
+    await _flutterTts.setPitch(1.0);
+    
+    _flutterTts.setCompletionHandler(() {
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+        });
+      }
+    });
+
+    setState(() {
+      _isTtsInitialized = true;
+    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _flutterTts.stop();
     for (var controller in _controllers.values) {
       controller.dispose();
     }
@@ -76,8 +108,8 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
     try {
       final testMap = await StartTest().execute(
         difficulty: _selectedDifficulty,
-        testType: TestType.writing,
-        moduleType: WritingModuleType.paraphrasing,
+        testType: TestType.listening,
+        moduleType: ListeningModuleType.inference,
       );
 
       setState(() {
@@ -94,7 +126,6 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
         _startTimer();
       });
     } catch (e) {
-      // Handle error (maybe show a snackbar and go back)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error starting test: $e')),
@@ -121,12 +152,38 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
     });
   }
 
+  Future<void> _playAudio() async {
+    if (!_isTtsInitialized || _testData == null) return;
+    
+    final textToSpeak = _testData!['text'] as String?;
+    if (textToSpeak == null || textToSpeak.isEmpty) {
+       ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No audio content available.')),
+        );
+      return;
+    }
+
+    if (_isPlaying) {
+      await _flutterTts.stop();
+      setState(() {
+        _isPlaying = false;
+      });
+    } else {
+      setState(() {
+        _isPlaying = true;
+      });
+      await _flutterTts.speak(textToSpeak);
+    }
+  }
+
   Future<void> _submitTest() async {
     _timer?.cancel();
+    _flutterTts.stop();
+    
     setState(() {
       _isSubmitting = true;
     });
-
+    
     try {
       final answers = <String, String>{};
       _controllers.forEach((questionId, controller) {
@@ -146,7 +203,6 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
 
       setState(() {
         _resultData = fullResult;
-        _isSubmitting = false;
         _testState = TestState.results;
       });
     } catch (e) {
@@ -154,6 +210,9 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error submitting test: $e')),
         );
+      }
+    } finally {
+      if (mounted) {
         setState(() {
           _isSubmitting = false;
         });
@@ -162,12 +221,15 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
   }
 
   void _restartTest() {
+    _flutterTts.stop();
     setState(() {
       _testState = TestState.initial;
       _controllers.clear();
       _questions = [];
       _testData = null;
       _resultData = null;
+      _isPlaying = false;
+      _isSubmitting = false;
     });
     _showSettingsDialog();
   }
@@ -203,6 +265,15 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
       return _buildResultsScreen();
     }
 
+    return _buildTestScreen();
+  }
+
+  Widget _buildTestScreen() {
+    final minutes = _remainingSeconds ~/ 60;
+    final seconds = _remainingSeconds % 60;
+    final progress = _remainingSeconds / _totalSeconds;
+    final isLowTime = _remainingSeconds < 30;
+
     return Column(
       children: [
         _buildHeader(),
@@ -212,43 +283,130 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildTimerCard(),
-                const SizedBox(height: 24),
-                if (_testData != null && _testData!['text'] != null) ...[
-                   SkillGlassCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Instructions / Context",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
+                // Timer
+                SkillGlassCard(
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: isLowTime
+                                ? [const Color(0xFFEF4444), const Color(0xFFDC2626)]
+                                : [const Color(0xFF6366F1), const Color(0xFF8B5CF6)],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _testData!['text'],
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: Color(0xFF334155),
-                            height: 1.5,
+                        child: Center(
+                          child: Icon(
+                            isLowTime ? Icons.timer_off : Icons.timer,
+                            color: Colors.white,
+                            size: 24,
                           ),
                         ),
-                      ],
-                    ),
-                   ),
-                   const SizedBox(height: 24),
-                ],
-                ..._questions.map((q) => _buildQuestionCard(q)),
-                const SizedBox(height: 40),
-                SkillPrimaryButton(
-                  label: _isSubmitting ? 'Evaluating...' : 'Submit All',
-                  onTap: _isSubmitting ? () {} : _submitTest,
-                  icon: _isSubmitting ? null : Icons.check_circle,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: isLowTime
+                                    ? const Color(0xFFEF4444)
+                                    : const Color(0xFF6366F1),
+                              ),
+                            ),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: LinearProgressIndicator(
+                                value: progress,
+                                backgroundColor: isLowTime
+                                    ? const Color(0xFFEF4444).withOpacity(0.15)
+                                    : const Color(0xFF6366F1).withOpacity(0.15),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  isLowTime
+                                      ? const Color(0xFFEF4444)
+                                      : const Color(0xFF6366F1),
+                                ),
+                                minHeight: 6,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(height: 32),
+                
+                // Audio Player
+                Center(
+                  child: GestureDetector(
+                    onTap: _playAudio,
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF6366F1).withOpacity(0.4),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: _isPlaying
+                            ? const SizedBox(
+                                width: 50,
+                                height: 50,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 3,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.volume_up_rounded,
+                                size: 50,
+                                color: Colors.white,
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: Text(
+                    _isPlaying ? 'Playing audio...' : 'Tap to listen',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: const Color(0xFF5C6470).withOpacity(0.8),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Questions
+                ..._questions.map((q) => _buildQuestionCard(q)),
+                
                 const SizedBox(height: 24),
+                
+                // Submit Button
+                SkillPrimaryButton(
+                  label: 'Submit',
+                  onTap: _submitTest,
+                  icon: Icons.check,
+                ),
               ],
             ),
           ),
@@ -260,9 +418,8 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
   Widget _buildQuestionCard(Map<String, dynamic> question) {
     final questionId = question['question_id'];
     final questionText = question['question_text'];
-    final questionNum = question['question_num'];
     final controller = _controllers[questionId];
-
+    
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: SkillGlassCard(
@@ -270,19 +427,10 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Question $questionNum',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF6366F1),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              questionText,
+              questionText ?? 'Question',
               style: const TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: Color(0xFF1E293B),
                 height: 1.4,
               ),
@@ -290,114 +438,46 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
             const SizedBox(height: 16),
             TextField(
               controller: controller,
-              maxLines: null,
-              minLines: 3,
+              maxLines: 4,
               decoration: InputDecoration(
                 hintText: 'Type your answer here...',
-                hintStyle: TextStyle(color: Colors.black.withOpacity(0.3)),
+                hintStyle: TextStyle(
+                  color: const Color(0xFF5C6470).withOpacity(0.5),
+                ),
                 filled: true,
                 fillColor: Colors.white.withOpacity(0.6),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: Colors.black.withOpacity(0.1),
+                    width: 1.5,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: Colors.black.withOpacity(0.08),
+                    width: 1.5,
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF6366F1),
+                    width: 2,
+                  ),
                 ),
                 contentPadding: const EdgeInsets.all(16),
               ),
-              style: const TextStyle(fontSize: 15, height: 1.5),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1E293B),
+                height: 1.6,
+              ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTimerCard() {
-    final minutes = _remainingSeconds ~/ 60;
-    final seconds = _remainingSeconds % 60;
-    final progress = _remainingSeconds / _totalSeconds;
-    final isLowTime = _remainingSeconds < 60;
-
-    return SkillGlassCard(
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: isLowTime
-                    ? [const Color(0xFFEF4444), const Color(0xFFDC2626)]
-                    : [const Color(0xFF6366F1), const Color(0xFF8B5CF6)],
-              ),
-            ),
-            child: Center(
-              child: Icon(
-                isLowTime ? Icons.timer_off : Icons.timer,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: isLowTime
-                        ? const Color(0xFFEF4444)
-                        : const Color(0xFF6366F1),
-                  ),
-                ),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: isLowTime
-                        ? const Color(0xFFEF4444).withOpacity(0.15)
-                        : const Color(0xFF6366F1).withOpacity(0.15),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      isLowTime
-                          ? const Color(0xFFEF4444)
-                          : const Color(0xFF6366F1),
-                    ),
-                    minHeight: 6,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Row(
-        children: [
-          _SmallBackButton(
-            onTap: () {
-              _timer?.cancel();
-              Navigator.of(context).pop();
-            },
-          ),
-          const SizedBox(width: 12),
-          const Text(
-            'Paraphrasing',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-        ],
       ),
     );
   }
@@ -432,7 +512,7 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'Evaluation Complete!',
+                  'Test Completed!',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
@@ -443,45 +523,38 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
                 Text(
                   'Score: $score / $totalPoints',
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF334155),
+                    color: Color(0xFF1E293B),
                   ),
                 ),
                 const SizedBox(height: 24),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(12),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Feedback:',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Feedback:",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        feedbackText ?? "No feedback available.",
-                        style: const TextStyle(
-                          fontSize: 15,
-                          height: 1.5,
-                          color: Color(0xFF334155),
-                        ),
-                      ),
-                    ],
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    feedbackText ?? 'No feedback available.',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: const Color(0xFF5C6470).withOpacity(0.9),
+                      height: 1.5,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 32),
                 SkillPrimaryButton(
-                  label: 'Try Again',
+                  label: 'Try Another',
                   onTap: _restartTest,
                   icon: Icons.refresh,
                 ),
@@ -497,7 +570,33 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
       ),
     );
   }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Row(
+        children: [
+          _SmallBackButton(
+            onTap: () {
+              _timer?.cancel();
+              _flutterTts.stop();
+              Navigator.of(context).pop();
+            },
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'Inference',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
+// ============================================================================
+// CUSTOM WIDGETS
+// ============================================================================
 
 class _GradientBackground extends StatelessWidget {
   const _GradientBackground();
