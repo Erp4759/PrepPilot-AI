@@ -22,7 +22,7 @@ class ListeningGistListeningScreen extends StatefulWidget {
 class _ListeningGistListeningScreenState
     extends State<ListeningGistListeningScreen> {
   TestState _testState = TestState.initial;
-  Difficulty _selectedDifficulty = Difficulty.band_5;
+  Difficulty _selectedDifficulty = Difficulty.b2;
 
   // Test data
   static const int _totalSeconds = 120;
@@ -115,7 +115,7 @@ class _ListeningGistListeningScreenState
       setState(() {
         _testData = testMap;
         _questions = testMap['questions'] ?? [];
-        
+
         // Initialize controllers for each question
         _controllers.clear();
         for (var q in _questions) {
@@ -127,9 +127,9 @@ class _ListeningGistListeningScreenState
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error starting test: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error starting test: $e')));
         Navigator.of(context).pop();
       }
     }
@@ -191,10 +191,8 @@ class _ListeningGistListeningScreenState
       });
 
       final testId = _testData!['test_id'];
-      final submissionResult = await SubmitAnswersAndCheckResults().submitAnswers(
-        testId: testId,
-        answers: answers,
-      );
+      final submissionResult = await SubmitAnswersAndCheckResults()
+          .submitAnswers(testId: testId, answers: answers);
 
       final resultId = submissionResult['result_id'];
       final fullResult = await SubmitAnswersAndCheckResults().fetchResult(
@@ -207,9 +205,9 @@ class _ListeningGistListeningScreenState
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error submitting test: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error submitting test: $e')));
       }
     } finally {
       if (mounted) {
@@ -298,7 +296,7 @@ class _ListeningGistListeningScreenState
                         gradient: LinearGradient(
                           colors: [
                             const Color(0xFF6366F1),
-                            const Color(0xFF8B5CF6)
+                            const Color(0xFF8B5CF6),
                           ],
                         ),
                         boxShadow: [
@@ -340,7 +338,7 @@ class _ListeningGistListeningScreenState
                   ),
                 ),
                 const SizedBox(height: 48),
-                
+
                 // Questions
                 ..._questions.map((q) => _buildQuestionCard(q)),
 
@@ -497,7 +495,12 @@ class _ListeningGistListeningScreenState
     );
   }
 
-  Widget _buildTimerCard(int minutes, int seconds, double progress, bool isLowTime) {
+  Widget _buildTimerCard(
+    int minutes,
+    int seconds,
+    double progress,
+    bool isLowTime,
+  ) {
     return SkillGlassCard(
       child: Row(
         children: [
@@ -685,4 +688,3 @@ class _SmallBackButton extends StatelessWidget {
     );
   }
 }
-

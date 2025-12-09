@@ -19,6 +19,37 @@ class FeedbackData {
 
   // Detailed answers
   final List<DetailedAnswer> detailedAnswers;
+  // Safe parsing helpers (shared within this class)
+  static int _parseIntSafe(dynamic v, [int fallback = 0]) {
+    if (v == null) return fallback;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) {
+      final parsed = int.tryParse(v);
+      if (parsed != null) return parsed;
+      final parsedDouble = double.tryParse(v);
+      if (parsedDouble != null) return parsedDouble.toInt();
+    }
+    return fallback;
+  }
+
+  static String _toStringSafe(dynamic v, [String fallback = '']) {
+    if (v == null) return fallback;
+    return v.toString();
+  }
+
+  static DateTime _parseDateSafe(dynamic v) {
+    if (v == null) return DateTime.now();
+    if (v is DateTime) return v;
+    if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
+    if (v is String) {
+      final parsed = DateTime.tryParse(v);
+      if (parsed != null) return parsed;
+      final asInt = int.tryParse(v);
+      if (asInt != null) return DateTime.fromMillisecondsSinceEpoch(asInt);
+    }
+    return DateTime.now();
+  }
 
   const FeedbackData({
     required this.feedbackId,
@@ -38,24 +69,25 @@ class FeedbackData {
   });
 
   factory FeedbackData.fromCompleteResult(Map<String, dynamic> data) {
-    final detailedAnswersList = (data['detailed_answers'] as List)
-        .map((answer) => DetailedAnswer.fromMap(answer))
-        .toList();
+    final rawList = data['detailed_answers'];
+    final detailedAnswersList = (rawList is List)
+        ? rawList.map((answer) => DetailedAnswer.fromMap(answer)).toList()
+        : <DetailedAnswer>[];
 
     return FeedbackData(
-      feedbackId: data['feedback_id'] as String,
-      resultId: data['result_id'] as String,
-      feedbackText: data['feedback_text'] as String,
-      createdAt: DateTime.parse(data['feedback_created_at'] as String),
-      testId: data['test_id'] as String,
-      userId: data['user_id'] as String,
-      score: data['score'] as int,
-      totalPoints: data['total_points'] as int,
-      title: data['test']['title'] as String,
-      text: data['test']['text'] as String,
-      testType: data['test']['test_type'] as String,
-      moduleType: data['test']['module_type'] as String,
-      difficulty: data['test']['difficulty'] as int,
+      feedbackId: _toStringSafe(data['feedback_id']),
+      resultId: _toStringSafe(data['result_id']),
+      feedbackText: _toStringSafe(data['feedback_text']),
+      createdAt: _parseDateSafe(data['feedback_created_at']),
+      testId: _toStringSafe(data['test_id']),
+      userId: _toStringSafe(data['user_id']),
+      score: _parseIntSafe(data['score']),
+      totalPoints: _parseIntSafe(data['total_points']),
+      title: _toStringSafe(data['test']?['title']),
+      text: _toStringSafe(data['test']?['text']),
+      testType: _toStringSafe(data['test']?['test_type']),
+      moduleType: _toStringSafe(data['test']?['module_type']),
+      difficulty: _parseIntSafe(data['test']?['difficulty']),
       detailedAnswers: detailedAnswersList,
     );
   }
@@ -89,13 +121,44 @@ class DetailedAnswer {
 
   factory DetailedAnswer.fromMap(Map<String, dynamic> map) {
     return DetailedAnswer(
-      questionNum: map['question_num'] as int,
-      questionText: map['question_text'] as String,
-      correctAnswer: map['correct_answer'] as String,
-      userAnswer: map['user_answer'] as String,
-      isCorrect: map['is_correct'] as bool,
-      pointsEarned: map['points_earned'] as int,
-      pointsAvailable: map['points_available'] as int,
+      questionNum: _parseIntSafe(map['question_num']),
+      questionText: _toStringSafe(map['question_text']),
+      correctAnswer: _toStringSafe(map['correct_answer']),
+      userAnswer: _toStringSafe(map['user_answer']),
+      isCorrect: map['is_correct'] == true,
+      pointsEarned: _parseIntSafe(map['points_earned']),
+      pointsAvailable: _parseIntSafe(map['points_available']),
     );
+  }
+
+  static int _parseIntSafe(dynamic v, [int fallback = 0]) {
+    if (v == null) return fallback;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) {
+      final parsed = int.tryParse(v);
+      if (parsed != null) return parsed;
+      final parsedDouble = double.tryParse(v);
+      if (parsedDouble != null) return parsedDouble.toInt();
+    }
+    return fallback;
+  }
+
+  static String _toStringSafe(dynamic v, [String fallback = '']) {
+    if (v == null) return fallback;
+    return v.toString();
+  }
+
+  static DateTime _parseDateSafe(dynamic v) {
+    if (v == null) return DateTime.now();
+    if (v is DateTime) return v;
+    if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
+    if (v is String) {
+      final parsed = DateTime.tryParse(v);
+      if (parsed != null) return parsed;
+      final asInt = int.tryParse(v);
+      if (asInt != null) return DateTime.fromMillisecondsSinceEpoch(asInt);
+    }
+    return DateTime.now();
   }
 }

@@ -2,24 +2,62 @@ import '../models/feedback_data.dart';
 
 class MockFeedback {
   static final Map<String, FeedbackData> feedbackById = {
-    '1': FeedbackData(
+    'f1': FeedbackData(
+      feedbackId: 'f1',
+      resultId: 'r1',
+      feedbackText:
+          'Good summary but missed some key consequences; include working conditions and environmental impacts.',
+      createdAt: DateTime.parse('2025-10-20T12:30:00Z'),
+      testId: 't1',
+      userId: 'u1',
+      score: 6,
+      totalPoints: 9,
+      title: 'Reading Comprehension',
+      text: 'Passage about Industrial Revolution and its social impacts',
       testType: 'reading',
-      question:
-          'The Industrial Revolution brought significant changes to society. Manufacturing shifted from home-based production to factories, leading to urbanization as workers moved to cities. This period saw innovations in textile manufacturing, steam power, and transportation. However, it also created challenging working conditions and environmental concerns that would shape labor movements and environmental policies for generations.\n\nSummarize the main points in 2-3 sentences.',
-      userAnswer:
-          'The Industrial Revolution caused people to move to cities for factory jobs. New machines were invented and transportation improved.',
-      aiAnalysis:
-          'Your answer correctly identifies urbanization and technological innovations as key changes. However, you missed critical aspects mentioned in the passage: the challenging working conditions and environmental concerns that led to labor movements and policy changes. For a higher band score, ensure you capture all main points from the passage, including consequences and long-term impacts.',
-      score: 6.0,
+      moduleType: 'inference',
+      difficulty: 3,
+      detailedAnswers: [
+        DetailedAnswer(
+          questionNum: 1,
+          questionText: 'Summarize the passage',
+          correctAnswer:
+              'The passage explains industrialization, urbanization, and resulting social and environmental consequences.',
+          userAnswer:
+              'People moved to cities for factory jobs; new machines and better transport emerged.',
+          isCorrect: true,
+          pointsEarned: 6,
+          pointsAvailable: 9,
+        ),
+      ],
     ),
-    '2': FeedbackData(
+    'f2': FeedbackData(
+      feedbackId: 'f2',
+      resultId: 'r2',
+      feedbackText:
+          'Too brief; take notes during listening and capture specific impacts mentioned.',
+      createdAt: DateTime.parse('2025-10-19T12:30:00Z'),
+      testId: 't2',
+      userId: 'u1',
+      score: 4,
+      totalPoints: 9,
+      title: 'Listening Practice',
+      text: 'Conversation about climate change impacts',
       testType: 'listening',
-      question:
-          'Listen to the conversation about climate change. What three main effects were discussed?',
-      userAnswer: 'Weather changes',
-      aiAnalysis:
-          'Your answer is too brief and captures only one general effect. The audio discussed three specific impacts: rising ocean temperatures, disrupted weather patterns, and ecosystem instability. To improve, take notes during listening and aim to capture specific details rather than general statements.',
-      score: 4.5,
+      moduleType: 'gist_listening',
+      difficulty: 4,
+      detailedAnswers: [
+        DetailedAnswer(
+          questionNum: 1,
+          questionText: 'List three main effects discussed',
+          correctAnswer:
+              'Rising ocean temperatures, disrupted weather patterns, ecosystem instability',
+          userAnswer: 'Weather changes',
+          isCorrect: false,
+          pointsEarned: 4,
+          pointsAvailable: 9,
+        ),
+      ],
     ),
   };
 }

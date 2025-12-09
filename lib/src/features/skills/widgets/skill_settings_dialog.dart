@@ -8,11 +8,13 @@ class SkillSettingsDialog extends StatefulWidget {
     required this.selectedDifficulty,
     required this.onStart,
     required this.onCancel,
+    this.allowedDifficulties,
   });
 
   final Difficulty selectedDifficulty;
   final Function(Difficulty) onStart;
   final VoidCallback onCancel;
+  final List<Difficulty>? allowedDifficulties;
 
   @override
   State<SkillSettingsDialog> createState() => _SkillSettingsDialogState();
@@ -107,14 +109,18 @@ class _SkillSettingsDialogState extends State<SkillSettingsDialog> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: Difficulty.values.map((difficulty) {
-                    final label = 'Band ${difficulty.name.split('_').last}';
-                    return SkillSettingChip(
-                      label: label,
-                      isSelected: _difficulty == difficulty,
-                      onTap: () => setState(() => _difficulty = difficulty),
-                    );
-                  }).toList(),
+                  children: (widget.allowedDifficulties ?? Difficulty.values)
+                      .map((difficulty) {
+                        final label = difficulty.name.startsWith('band_')
+                            ? 'Band ${difficulty.name.split('_').last}'
+                            : difficulty.name.toUpperCase();
+                        return SkillSettingChip(
+                          label: label,
+                          isSelected: _difficulty == difficulty,
+                          onTap: () => setState(() => _difficulty = difficulty),
+                        );
+                      })
+                      .toList(),
                 ),
                 const SizedBox(height: 32),
                 Row(

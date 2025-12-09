@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../reading/presentation/reading_home.dart';
+import 'speaking/index.dart';
 
 class SkillsMainScreen extends StatelessWidget {
   const SkillsMainScreen({super.key});
@@ -28,7 +29,12 @@ class SkillsMainScreen extends StatelessWidget {
                       ),
                     );
                   },
-                  color1: const Color.fromARGB(255, 241, 93, 82).withOpacity(0.4),
+                  color1: const Color.fromARGB(
+                    255,
+                    241,
+                    93,
+                    82,
+                  ).withOpacity(0.4),
                   color2: const Color.fromARGB(
                     255,
                     246,
@@ -40,7 +46,13 @@ class SkillsMainScreen extends StatelessWidget {
                 const SizedBox(height: 40),
                 _SkillsButton(
                   label: 'Speaking',
-                  ontap: () {},
+                  ontap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const SpeakingHomeScreen(),
+                      ),
+                    );
+                  },
                   color1: const Color.fromARGB(
                     255,
                     229,
@@ -60,14 +72,25 @@ class SkillsMainScreen extends StatelessWidget {
                   label: 'Listening',
                   ontap: () =>
                       Navigator.of(context).pushNamed('/skills/listening'),
-                  color1: const Color.fromARGB(255, 63, 225, 68).withOpacity(0.4),
-                  color2: const Color.fromARGB(255, 60, 91, 76).withOpacity(0.4),
+                  color1: const Color.fromARGB(
+                    255,
+                    63,
+                    225,
+                    68,
+                  ).withOpacity(0.4),
+                  color2: const Color.fromARGB(
+                    255,
+                    60,
+                    91,
+                    76,
+                  ).withOpacity(0.4),
                   icon: Icons.hearing,
                 ),
                 const SizedBox(height: 40),
                 _SkillsButton(
                   label: 'Writing',
-                  ontap: () => Navigator.of(context).pushNamed('/skills/writing'),
+                  ontap: () =>
+                      Navigator.of(context).pushNamed('/skills/writing'),
                   color1: const Color.fromARGB(
                     255,
                     99,

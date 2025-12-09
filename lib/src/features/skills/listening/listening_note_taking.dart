@@ -19,10 +19,9 @@ class ListeningNoteTakingScreen extends StatefulWidget {
       _ListeningNoteTakingScreenState();
 }
 
-class _ListeningNoteTakingScreenState
-    extends State<ListeningNoteTakingScreen> {
+class _ListeningNoteTakingScreenState extends State<ListeningNoteTakingScreen> {
   TestState _testState = TestState.initial;
-  Difficulty _selectedDifficulty = Difficulty.band_5;
+  Difficulty _selectedDifficulty = Difficulty.b2;
 
   // Test data
   static const int _totalSeconds = 300;
@@ -127,9 +126,9 @@ class _ListeningNoteTakingScreenState
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error starting test: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error starting test: $e')));
         Navigator.of(context).pop();
       }
     }
@@ -191,10 +190,8 @@ class _ListeningNoteTakingScreenState
       });
 
       final testId = _testData!['test_id'];
-      final submissionResult = await SubmitAnswersAndCheckResults().submitAnswers(
-        testId: testId,
-        answers: answers,
-      );
+      final submissionResult = await SubmitAnswersAndCheckResults()
+          .submitAnswers(testId: testId, answers: answers);
 
       final resultId = submissionResult['result_id'];
       final fullResult = await SubmitAnswersAndCheckResults().fetchResult(
@@ -207,9 +204,9 @@ class _ListeningNoteTakingScreenState
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error submitting test: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error submitting test: $e')));
       }
     } finally {
       if (mounted) {
@@ -294,8 +291,14 @@ class _ListeningNoteTakingScreenState
                           shape: BoxShape.circle,
                           gradient: LinearGradient(
                             colors: isLowTime
-                                ? [const Color(0xFFEF4444), const Color(0xFFDC2626)]
-                                : [const Color(0xFF6366F1), const Color(0xFF8B5CF6)],
+                                ? [
+                                    const Color(0xFFEF4444),
+                                    const Color(0xFFDC2626),
+                                  ]
+                                : [
+                                    const Color(0xFF6366F1),
+                                    const Color(0xFF8B5CF6),
+                                  ],
                           ),
                         ),
                         child: Center(
@@ -525,8 +528,10 @@ class _ListeningNoteTakingScreenState
                     width: 2,
                   ),
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
               ),
               style: const TextStyle(
                 fontSize: 14,

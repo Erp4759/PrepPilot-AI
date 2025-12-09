@@ -20,7 +20,7 @@ class WritingParaphrasingScreen extends StatefulWidget {
 
 class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
   TestState _testState = TestState.initial;
-  Difficulty _selectedDifficulty = Difficulty.band_5;
+  Difficulty _selectedDifficulty = Difficulty.b2;
   Timer? _timer;
   static const int _totalSeconds = 600;
   int _remainingSeconds = _totalSeconds;
@@ -83,22 +83,22 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
       setState(() {
         _testData = testMap;
         _questions = testMap['questions'] ?? [];
-        
+
         // Initialize controllers for each question
         _controllers.clear();
         for (var q in _questions) {
           _controllers[q['question_id']] = TextEditingController();
         }
-        
+
         _testState = TestState.test;
         _startTimer();
       });
     } catch (e) {
       // Handle error (maybe show a snackbar and go back)
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error starting test: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error starting test: $e')));
         Navigator.of(context).pop();
       }
     }
@@ -134,10 +134,8 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
       });
 
       final testId = _testData!['test_id'];
-      final submissionResult = await SubmitAnswersAndCheckResults().submitAnswers(
-        testId: testId,
-        answers: answers,
-      );
+      final submissionResult = await SubmitAnswersAndCheckResults()
+          .submitAnswers(testId: testId, answers: answers);
 
       final resultId = submissionResult['result_id'];
       final fullResult = await SubmitAnswersAndCheckResults().fetchResult(
@@ -151,9 +149,9 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error submitting test: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error submitting test: $e')));
         setState(() {
           _isSubmitting = false;
         });
@@ -215,7 +213,7 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
                 _buildTimerCard(),
                 const SizedBox(height: 24),
                 if (_testData != null && _testData!['text'] != null) ...[
-                   SkillGlassCard(
+                  SkillGlassCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -238,8 +236,8 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
                         ),
                       ],
                     ),
-                   ),
-                   const SizedBox(height: 24),
+                  ),
+                  const SizedBox(height: 24),
                 ],
                 ..._questions.map((q) => _buildQuestionCard(q)),
                 const SizedBox(height: 40),
@@ -303,7 +301,10 @@ class _WritingParaphrasingScreenState extends State<WritingParaphrasingScreen> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF6366F1),
+                    width: 1.5,
+                  ),
                 ),
                 contentPadding: const EdgeInsets.all(16),
               ),

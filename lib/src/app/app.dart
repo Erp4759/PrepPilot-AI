@@ -17,6 +17,11 @@ import '../features/skills/index.dart';
 import 'main_shell.dart';
 import '../core/theme/app_theme.dart';
 
+// Global navigator key so code running outside widget build contexts
+// (for example auth state listeners in initState) can perform navigation
+// without relying on a BuildContext that may not yet contain a Navigator.
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 class PrepPilotApp extends StatefulWidget {
   const PrepPilotApp({super.key});
 
@@ -66,11 +71,19 @@ class _PrepPilotAppState extends State<PrepPilotApp> {
             // Check if the current route is not already the login screen to avoid errors
             if (ModalRoute.of(context)?.settings.name !=
                 LoginScreen.routeName) {
-              // Push the login screen and remove all other routes below it (like the home page)
-              Navigator.of(context).pushNamedAndRemoveUntil(
-                LoginScreen.routeName,
-                (route) => false,
-              );
+              // Push the login screen and remove all other routes below it
+              // Use the global navigator key instead of a BuildContext-derived
+              // Navigator to avoid "context does not include a Navigator" errors
+              // when this callback runs during initState.
+              try {
+                navigatorKey.currentState?.pushNamedAndRemoveUntil(
+                  LoginScreen.routeName,
+                  (route) => false,
+                );
+              } catch (_) {
+                // If navigation fails for any reason, ignore and allow
+                // app to remain in its current state; this is non-fatal.
+              }
             }
           });
         }
@@ -167,6 +180,7 @@ class _PrepPilotAppState extends State<PrepPilotApp> {
           child: wrappedChild,
         );
       },
+      navigatorKey: navigatorKey,
       navigatorObservers: [routeObserver],
       title: 'PrepPilot AI',
       theme: AppTheme.light,
@@ -183,11 +197,11 @@ class _PrepPilotAppState extends State<PrepPilotApp> {
         '/skills/listening/listening_focusing_on_disctractors.dart': (_) =>
             const ListeningGistListeningScreen(),
         '/skills/writing': (_) => const WritingHomeScreen(),
-        WritingCoherenceAndCohesionScreen.routeName: (_) => 
+        WritingCoherenceAndCohesionScreen.routeName: (_) =>
             const WritingCoherenceAndCohesionScreen(),
-        WritingTaskResponseScreen.routeName: (_) => 
+        WritingTaskResponseScreen.routeName: (_) =>
             const WritingTaskResponseScreen(),
-        WritingParaphrasingScreen.routeName: (_) => 
+        WritingParaphrasingScreen.routeName: (_) =>
             const WritingParaphrasingScreen(),
         '/profile': (_) => const ProfileScreen(),
         '/profile/edit': (_) => const EditProfileScreen(),

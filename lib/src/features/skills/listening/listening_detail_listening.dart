@@ -22,7 +22,7 @@ class ListeningDetailListeningScreen extends StatefulWidget {
 class _ListeningDetailListeningScreenState
     extends State<ListeningDetailListeningScreen> {
   TestState _testState = TestState.initial;
-  Difficulty _selectedDifficulty = Difficulty.band_5;
+  Difficulty _selectedDifficulty = Difficulty.b2;
 
   // Test data
   static const int _totalSeconds = 300;
@@ -30,13 +30,13 @@ class _ListeningDetailListeningScreenState
   bool _isPlaying = false;
   bool _isSubmitting = false;
   Timer? _timer;
-  
+
   // Backend Data
   Map<String, dynamic>? _testData;
   List<dynamic> _questions = [];
   final Map<String, TextEditingController> _controllers = {};
   Map<String, dynamic>? _resultData;
-  
+
   // TTS
   final FlutterTts _flutterTts = FlutterTts();
   bool _isTtsInitialized = false;
@@ -55,7 +55,7 @@ class _ListeningDetailListeningScreenState
     await _flutterTts.setSpeechRate(0.5);
     await _flutterTts.setVolume(1.0);
     await _flutterTts.setPitch(1.0);
-    
+
     _flutterTts.setCompletionHandler(() {
       if (mounted) {
         setState(() {
@@ -115,21 +115,21 @@ class _ListeningDetailListeningScreenState
       setState(() {
         _testData = testMap;
         _questions = testMap['questions'] ?? [];
-        
+
         // Initialize controllers for each question
         _controllers.clear();
         for (var q in _questions) {
           _controllers[q['question_id']] = TextEditingController();
         }
-        
+
         _testState = TestState.test;
         _startTimer();
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error starting test: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error starting test: $e')));
         Navigator.of(context).pop();
       }
     }
@@ -154,12 +154,12 @@ class _ListeningDetailListeningScreenState
 
   Future<void> _playAudio() async {
     if (!_isTtsInitialized || _testData == null) return;
-    
+
     final textToSpeak = _testData!['text'] as String?;
     if (textToSpeak == null || textToSpeak.isEmpty) {
-       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No audio content available.')),
-        );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No audio content available.')),
+      );
       return;
     }
 
@@ -179,11 +179,11 @@ class _ListeningDetailListeningScreenState
   Future<void> _submitTest() async {
     _timer?.cancel();
     _flutterTts.stop();
-    
+
     setState(() {
       _isSubmitting = true;
     });
-    
+
     try {
       final answers = <String, String>{};
       _controllers.forEach((questionId, controller) {
@@ -191,10 +191,8 @@ class _ListeningDetailListeningScreenState
       });
 
       final testId = _testData!['test_id'];
-      final submissionResult = await SubmitAnswersAndCheckResults().submitAnswers(
-        testId: testId,
-        answers: answers,
-      );
+      final submissionResult = await SubmitAnswersAndCheckResults()
+          .submitAnswers(testId: testId, answers: answers);
 
       final resultId = submissionResult['result_id'];
       final fullResult = await SubmitAnswersAndCheckResults().fetchResult(
@@ -207,9 +205,9 @@ class _ListeningDetailListeningScreenState
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error submitting test: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error submitting test: $e')));
       }
     } finally {
       if (mounted) {
@@ -294,8 +292,14 @@ class _ListeningDetailListeningScreenState
                           shape: BoxShape.circle,
                           gradient: LinearGradient(
                             colors: isLowTime
-                                ? [const Color(0xFFEF4444), const Color(0xFFDC2626)]
-                                : [const Color(0xFF6366F1), const Color(0xFF8B5CF6)],
+                                ? [
+                                    const Color(0xFFEF4444),
+                                    const Color(0xFFDC2626),
+                                  ]
+                                : [
+                                    const Color(0xFF6366F1),
+                                    const Color(0xFF8B5CF6),
+                                  ],
                           ),
                         ),
                         child: Center(
@@ -343,7 +347,7 @@ class _ListeningDetailListeningScreenState
                   ),
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Audio Player
                 Center(
                   child: GestureDetector(
@@ -398,9 +402,9 @@ class _ListeningDetailListeningScreenState
 
                 // Questions
                 ..._questions.map((q) => _buildQuestionCard(q)),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Submit Button
                 SkillPrimaryButton(
                   label: 'Submit',
@@ -419,7 +423,7 @@ class _ListeningDetailListeningScreenState
     final questionId = question['question_id'];
     final questionText = question['question_text'];
     final controller = _controllers[questionId];
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: SkillGlassCard(
@@ -699,4 +703,3 @@ class _SmallBackButton extends StatelessWidget {
     );
   }
 }
-
