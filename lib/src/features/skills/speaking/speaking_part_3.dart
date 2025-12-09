@@ -7,6 +7,8 @@ import '../widgets/skill_settings_dialog.dart';
 import '../widgets/skill_loading_screen.dart';
 import '../widgets/skill_glass_card.dart';
 import '../actions/start_test.dart';
+import '../actions/submit_answers_and_check_results.dart';
+import '../../../library/results_notifier.dart';
 import 'local_speaking_evaluator.dart';
 
 class SpeakingPart3Screen extends StatefulWidget {
@@ -243,16 +245,45 @@ class _SpeakingPart3ScreenState extends State<SpeakingPart3Screen> {
     });
 
     try {
-      // Use local evaluation - no database
-      final results = await LocalSpeakingEvaluator.evaluateLocal(
-        testData: _testData!,
-        answers: _answers,
-      );
+      final testId = _testData!['test_id'];
 
-      setState(() {
-        _resultData = results;
-        _testState = TestState.results;
-      });
+      try {
+        final submission = await SubmitAnswersAndCheckResults().submitAnswers(
+          testId: testId,
+          answers: _answers,
+        );
+
+        final resultId = submission['result_id'] as String;
+        final fullResult = await SubmitAnswersAndCheckResults().fetchResult(
+          resultId: resultId,
+        );
+
+        ResultsNotifier.instance.notifyNewResult(resultId);
+
+        setState(() {
+          _resultData = fullResult;
+          _testState = TestState.results;
+        });
+      } catch (e) {
+        // fallback to local evaluation if server submission fails
+        final results = await LocalSpeakingEvaluator.evaluateLocal(
+          testData: _testData!,
+          answers: _answers,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Result not saved: $e — showing local feedback'),
+            ),
+          );
+        }
+
+        setState(() {
+          _resultData = results;
+          _testState = TestState.results;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(

@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:prep_pilot_ai/src/services/ai_agent.dart';
 import 'dart:convert';
+import '../../skills/actions/start_test.dart';
+import '../../skills/actions/submit_answers_and_check_results.dart';
+import '../../skills/models/test_properties.dart' as skill_props;
+import '../../../library/results_notifier.dart';
 
 enum TestState { initial, loading, test, results }
 
@@ -30,6 +34,12 @@ class _ReadingSkimmingScreenState extends State<ReadingSkimmingScreen> {
   String? _generatedPassage;
   List<Map<String, dynamic>>? _generatedQuestions;
   final Map<int, dynamic> _answers = {};
+  // If test was created/stored on server, this holds the server test record
+  Map<String, dynamic>? _serverTest;
+  // Results
+  int _scoreEarned = 0;
+  int _pointsPossible = 0;
+  String _overallFeedback = '';
 
   // Timer
   Timer? _timer;
@@ -79,6 +89,50 @@ class _ReadingSkimmingScreenState extends State<ReadingSkimmingScreen> {
     });
 
     try {
+      // First, try to create & store a server-backed test (if logged in and prompt exists)
+      try {
+        final skillDifficulty = skill_props.Difficulty.values.firstWhere(
+          (d) => d.name == _selectedDifficulty.name,
+          orElse: () => skill_props.Difficulty.b1,
+        );
+
+        final testMap = await StartTest().execute(
+          difficulty: skillDifficulty,
+          testType: skill_props.TestType.reading,
+          moduleType: skill_props.ReadingModuleType.skimming,
+        );
+
+        // Map server test into local structures
+        _serverTest = testMap;
+        _generatedPassage =
+            testMap['text'] ?? testMap['test_description'] ?? '';
+        final serverQuestions = (testMap['questions'] as List<dynamic>?) ?? [];
+        _generatedQuestions = serverQuestions.map((q) {
+          final m = Map<String, dynamic>.from(q as Map);
+          return {
+            'question_id': m['question_id'],
+            'question': m['question_text'],
+            'type': QuestionType.shortAnswer,
+            'options': m['options'] ?? [],
+            'correctAnswer': m['correct_answer'],
+            'points': m['points'] ?? 1,
+          };
+        }).toList();
+
+        _totalSeconds = _getTimeLimit();
+        _remainingSeconds = _totalSeconds;
+        _answers.clear();
+        _startTimer();
+
+        setState(() {
+          _testState = TestState.test;
+        });
+
+        return;
+      } catch (e) {
+        // Fall through to local generation if server test creation fails
+        _serverTest = null;
+      }
       final difficultyLabel = _selectedDifficulty.name.toUpperCase();
       final lengthLabel = switch (_selectedLength) {
         PassageLength.short => 'short (100-150 words)',
@@ -383,6 +437,79 @@ Passage:\n${_generatedPassage}\n\nData:${jsonEncode(items)}
 ''';
 
     try {
+      // If this test was created on the server, submit answers to the backend
+      if (_serverTest != null && _generatedQuestions != null) {
+        try {
+          // Build answers map keyed by question_id
+          final answersMap = <String, String>{};
+          for (var i = 0; i < _generatedQuestions!.length; i++) {
+            final q = _generatedQuestions![i];
+            final qid = q['question_id']?.toString() ?? '';
+            final userAns = _answers.containsKey(i)
+                ? (_answers[i]?.toString() ?? '')
+                : '';
+            if (qid.isNotEmpty) answersMap[qid] = userAns;
+          }
+
+          final testId = _serverTest!['test_id'] as String;
+
+          final submission = await SubmitAnswersAndCheckResults().submitAnswers(
+            testId: testId,
+            answers: answersMap,
+          );
+
+          final resultId = submission['result_id'] as String;
+          final fullResult = await SubmitAnswersAndCheckResults().fetchResult(
+            resultId: resultId,
+          );
+
+          // Update UI data from full result
+          final detailed =
+              (fullResult['detailed_answers'] as List<dynamic>?) ?? [];
+          _generatedQuestions = detailed
+              .map((d) => Map<String, dynamic>.from(d as Map))
+              .toList();
+          _generatedPassage =
+              (fullResult['test']?['text'] ??
+                      fullResult['test']?['test_description'] ??
+                      _generatedPassage)
+                  as String? ??
+              _generatedPassage;
+
+          _scoreEarned = fullResult['score'] is num
+              ? (fullResult['score'] as num).toInt()
+              : 0;
+          _pointsPossible = fullResult['total_points'] is num
+              ? (fullResult['total_points'] as num).toInt()
+              : (_generatedQuestions?.length ?? 0);
+          final percent = _pointsPossible > 0
+              ? ((_scoreEarned / _pointsPossible * 100).round())
+              : 0;
+          _overallFeedback =
+              fullResult['feedback_text'] ??
+              "Scored $_scoreEarned out of $_pointsPossible (${percent}%)";
+
+          // Notify Results list to refresh
+          ResultsNotifier.instance.notifyNewResult(resultId);
+
+          if (!mounted) return;
+          setState(() {
+            _testState = TestState.results;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Results saved to server'),
+              backgroundColor: const Color(0xFF10B981),
+            ),
+          );
+
+          return;
+        } catch (serverErr) {
+          // If server submission fails, fall back to local grading below
+        }
+      }
+
       final parsed = await aiJson<List<dynamic>>(
         userPrompt: prompt,
         system: 'Return JSON only. No prose. Use double quotes.',
@@ -405,6 +532,25 @@ Passage:\n${_generatedPassage}\n\nData:${jsonEncode(items)}
               r['score'] ?? (r['is_correct'] == true ? 1 : 0);
         }
       }
+
+      // Compute totals and overall feedback summary
+      int total = 0;
+      int possible = 0;
+      final feedbackPieces = <String>[];
+      for (var i = 0; i < _generatedQuestions!.length; i++) {
+        final q = _generatedQuestions![i];
+        final s = (q['_score'] is num) ? (q['_score'] as num).toInt() : 0;
+        total += s;
+        possible += 1; // each skimming question is 1 point by design
+        final fb = (q['_feedback'] ?? '').toString();
+        if (fb.isNotEmpty) feedbackPieces.add('Q${i + 1}: $fb');
+      }
+
+      _scoreEarned = total;
+      _pointsPossible = possible;
+      final percent = possible > 0 ? ((total / possible * 100).round()) : 0;
+      _overallFeedback =
+          'You scored $total out of $possible (${percent}%). Review the feedback below for each question.';
 
       if (!mounted) return;
       setState(() {
@@ -861,44 +1007,319 @@ Passage:\n${_generatedPassage}\n\nData:${jsonEncode(items)}
   }
 
   Widget _buildResultsScreen() {
-    return Center(
-      child: _GlassCard(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF10B981), Color(0xFF059669)],
+    // Build answers list for display
+    final List<Map<String, dynamic>> answersList = [];
+    if (_generatedQuestions != null) {
+      for (var i = 0; i < _generatedQuestions!.length; i++) {
+        final q = _generatedQuestions![i];
+        answersList.add({
+          'question_num': i + 1,
+          'question_text': q['question'] ?? '',
+          'user_answer': _answers.containsKey(i) ? _answers[i] : '',
+          'is_correct': q['_is_correct'] ?? false,
+          'points_earned': q['_score'] ?? 0,
+          'points_available': 1,
+          'feedback': q['_feedback'] ?? '',
+          'expected': q['_expected'] ?? '',
+        });
+      }
+    }
+
+    final int score = _scoreEarned;
+    final int totalPoints = _pointsPossible;
+    final int percentage = totalPoints > 0
+        ? ((score / totalPoints * 100).round())
+        : 0;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildHeader(),
+          const SizedBox(height: 16),
+
+          // Score overview
+          _GlassCard(
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Column(
+                      children: [
+                        Text(
+                          '$score',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF2C8FFF),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Points',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      children: [
+                        Text(
+                          '${percentage}%',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF8B5CF6),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Percentage',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      children: [
+                        Text(
+                          '${answersList.where((a) => (a['is_correct'] ?? false)).length}/${answersList.length}',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF10B981),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Correct',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                borderRadius: BorderRadius.circular(20),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // AI Analysis / overall feedback
+          if (_overallFeedback.isNotEmpty) ...[
+            _GlassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.psychology_rounded,
+                          color: Color(0xFF10B981),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'AI Analysis',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          color: Color(0xFF10B981),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFFF0F9FF), Color(0xFFF0FDF4)],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: const Color(0xFF10B981).withOpacity(.2),
+                      ),
+                    ),
+                    child: Text(
+                      _overallFeedback,
+                      style: const TextStyle(height: 1.6, fontSize: 15),
+                    ),
+                  ),
+                ],
               ),
-              child: const Icon(
-                Icons.check_circle_outline,
-                color: Colors.white,
-                size: 40,
-              ),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'Test Submitted!',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Your skimming skills are being analyzed...',
-              style: TextStyle(fontSize: 14, color: Color(0xFF5C6470)),
-            ),
-            const SizedBox(height: 24),
-            _PrimaryButton(
-              label: 'Take Another Test',
-              onTap: _restartTest,
-              icon: Icons.refresh,
-            ),
+            const SizedBox(height: 16),
           ],
-        ),
+
+          // Test Context
+          _GlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8B5CF6), Color(0xFFB78DFF)],
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.description_rounded,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Test Context',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _generatedPassage ?? '',
+                  style: const TextStyle(height: 1.6, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Question Breakdown
+          _GlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEE2E2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.format_list_numbered_rounded,
+                        color: Color(0xFFEF4444),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Question Breakdown',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        color: Color(0xFFEF4444),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ...answersList.map((a) {
+                  final earned = a['points_earned'] is num
+                      ? (a['points_earned'] as num).toInt()
+                      : 0;
+                  final avail = a['points_available'] is num
+                      ? (a['points_available'] as num).toInt()
+                      : 1;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 12),
+                      Text(
+                        'Q${a['question_num']}: ${a['question_text'] ?? ''}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.black.withOpacity(0.06),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if ((a['user_answer'] ?? '')
+                                .toString()
+                                .isNotEmpty) ...[
+                              Text(
+                                'Your answer: ${(a['user_answer'] ?? '').toString()}',
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+                            if ((a['expected'] ?? '')
+                                .toString()
+                                .isNotEmpty) ...[
+                              Text(
+                                'Expected: ${(a['expected'] ?? '').toString()}',
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Score: $earned / $avail',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    (a['feedback'] ?? '').toString(),
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(color: Colors.grey),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+          // Actions
+          _PrimaryButton(
+            label: 'Try Again',
+            onTap: _restartTest,
+            icon: Icons.refresh,
+          ),
+          const SizedBox(height: 12),
+          _PrimaryButton(
+            label: 'Back',
+            onTap: () => Navigator.of(context).pop(),
+            icon: Icons.home,
+          ),
+        ],
       ),
     );
   }
@@ -1468,9 +1889,10 @@ class _ShortAnswerInput extends StatelessWidget {
               width: 1.5,
             ),
           ),
-          child: TextField(
+          child: TextFormField(
+            initialValue: value,
             onChanged: onChanged,
-            controller: TextEditingController(text: value),
+            textDirection: TextDirection.ltr,
             style: const TextStyle(fontSize: 15, color: Color(0xFF1E293B)),
             decoration: InputDecoration(
               hintText: 'Type your short answer...',

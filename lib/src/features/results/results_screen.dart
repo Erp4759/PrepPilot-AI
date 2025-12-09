@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../library/test_helper.dart';
+import '../../library/results_notifier.dart';
 import 'models/test_result.dart';
 
 class ResultsScreen extends StatefulWidget {
@@ -18,6 +19,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
   @override
   void initState() {
     super.initState();
+    _loadResults();
+    // Listen for new results saved elsewhere in the app
+    ResultsNotifier.instance.addListener(_onResultsUpdated);
+  }
+
+  void _onResultsUpdated() {
     _loadResults();
   }
 
@@ -161,6 +168,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    ResultsNotifier.instance.removeListener(_onResultsUpdated);
+    super.dispose();
   }
 }
 

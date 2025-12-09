@@ -1,6 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../data/reading_agent.dart';
+import '../../skills/actions/start_test.dart';
+import '../../skills/actions/submit_answers_and_check_results.dart';
+import '../../../library/results_notifier.dart';
+import '../../skills/models/test_properties.dart' as skill_props;
 
 enum TestState { initial, loading, test, results }
 
@@ -30,6 +34,11 @@ class _ReadingScanningScreenState extends State<ReadingScanningScreen> {
   // LLM agent and results
   final ReadingAgent _agent = ReadingAgent();
   List<ReadingCheckResult>? _checkResults;
+  // Server-backed test (if created)
+  Map<String, dynamic>? _serverTest;
+  int _scoreEarned = 0;
+  int _pointsPossible = 0;
+  String _overallFeedback = '';
 
   @override
   void initState() {
@@ -78,6 +87,45 @@ class _ReadingScanningScreenState extends State<ReadingScanningScreen> {
     });
 
     try {
+      // Try to create a server-backed test first
+      try {
+        final skillDifficulty = skill_props.Difficulty.values.firstWhere(
+          (d) => d.name == _selectedDifficulty.name,
+          orElse: () => skill_props.Difficulty.b1,
+        );
+
+        final testMap = await StartTest().execute(
+          difficulty: skillDifficulty,
+          testType: skill_props.TestType.reading,
+          moduleType: skill_props.ReadingModuleType.scanning,
+        );
+
+        _serverTest = testMap;
+        _generatedPassage =
+            testMap['text'] ?? testMap['test_description'] ?? '';
+        final serverQuestions = (testMap['questions'] as List<dynamic>?) ?? [];
+        _generatedQuestions = serverQuestions
+            .map(
+              (q) => {
+                'question': (q as Map)['question_text']?.toString() ?? '',
+                'question_id': (q as Map)['question_id']?.toString() ?? '',
+              },
+            )
+            .toList(growable: false);
+
+        // Initialize controllers
+        _answerControllers.clear();
+        for (int i = 0; i < _generatedQuestions!.length; i++) {
+          _answerControllers[i] = TextEditingController();
+        }
+
+        setState(() {
+          _testState = TestState.test;
+        });
+        return;
+      } catch (_) {
+        _serverTest = null;
+      }
       final test = await _agent.generate(
         length: _mapLength(_selectedLength),
         difficulty: _mapDifficulty(_selectedDifficulty),
@@ -208,6 +256,70 @@ The concept of neuroplasticity has transformed our understanding of the brain. P
     });
 
     try {
+      // If this test was created on the server, submit answers to backend
+      if (_serverTest != null) {
+        try {
+          final answersMap = <String, String>{};
+          for (var i = 0; i < _generatedQuestions!.length; i++) {
+            final q = _generatedQuestions![i];
+            final qid = q['question_id']?.toString() ?? '';
+            final userAns = answers[i];
+            if (qid.isNotEmpty) answersMap[qid] = userAns;
+          }
+
+          final testId = _serverTest!['test_id'] as String;
+          final submission = await SubmitAnswersAndCheckResults().submitAnswers(
+            testId: testId,
+            answers: answersMap,
+          );
+
+          final resultId = submission['result_id'] as String;
+          final fullResult = await SubmitAnswersAndCheckResults().fetchResult(
+            resultId: resultId,
+          );
+
+          // Map detailed_answers to ReadingCheckResult list
+          final detailed =
+              (fullResult['detailed_answers'] as List<dynamic>?) ?? [];
+          _checkResults = detailed.map((d) {
+            final m = Map<String, dynamic>.from(d as Map);
+            return ReadingCheckResult(
+              index: (m['question_num'] as num).toInt() - 1,
+              isCorrect: m['is_correct'] == true,
+              expected: (m['correct_answer'] ?? '').toString(),
+              feedback: (m['feedback'] ?? '').toString(),
+              score: (m['points_earned'] as num?)?.toInt() ?? 0,
+            );
+          }).toList();
+
+          _scoreEarned = fullResult['score'] is num
+              ? (fullResult['score'] as num).toInt()
+              : 0;
+          _pointsPossible = fullResult['total_points'] is num
+              ? (fullResult['total_points'] as num).toInt()
+              : (_generatedQuestions?.length ?? 0);
+          _overallFeedback = fullResult['feedback_text'] ?? '';
+
+          // Notify results list
+          ResultsNotifier.instance.notifyNewResult(resultId);
+
+          setState(() {
+            _testState = TestState.results;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Results saved to server'),
+              backgroundColor: const Color(0xFF10B981),
+            ),
+          );
+
+          return;
+        } catch (serverErr) {
+          // fall back to local checking
+        }
+      }
+
       final results = await _agent.checkAnswers(
         passage: _generatedPassage!,
         questions: _generatedQuestions!.map((e) => e['question']!).toList(),

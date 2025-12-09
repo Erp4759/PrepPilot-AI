@@ -2,6 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:prep_pilot_ai/src/services/ai_agent.dart';
 import 'dart:convert';
+import '../../skills/actions/start_test.dart';
+import '../../skills/actions/submit_answers_and_check_results.dart';
+import '../../../library/results_notifier.dart';
+import '../../skills/models/test_properties.dart' as skill_props;
 
 enum TestState { initial, loading, test, results }
 
@@ -37,6 +41,11 @@ class _ReadingKeywordsScreenState extends State<ReadingKeywordsScreen> {
   Set<int> _selectedWordIndices = {};
   List<Map<String, dynamic>>? _generatedQuestions;
   final Map<int, dynamic> _answers = {};
+  // Server-backed test (if created)
+  Map<String, dynamic>? _serverTest;
+  int _scoreEarned = 0;
+  int _pointsPossible = 0;
+  String _overallFeedback = '';
 
   @override
   void initState() {
@@ -74,6 +83,57 @@ class _ReadingKeywordsScreenState extends State<ReadingKeywordsScreen> {
       _testState = TestState.loading;
     });
     try {
+      // Try to create a server-backed test first
+      try {
+        final skillDifficulty = skill_props.Difficulty.values.firstWhere(
+          (d) => d.name == _selectedDifficulty.name,
+          orElse: () => skill_props.Difficulty.b1,
+        );
+
+        final testMap = await StartTest().execute(
+          difficulty: skillDifficulty,
+          testType: skill_props.TestType.reading,
+          moduleType: skill_props.ReadingModuleType.keywords,
+        );
+
+        _serverTest = testMap;
+        _generatedPassage =
+            testMap['text'] ?? testMap['test_description'] ?? '';
+        _passageWords = _splitIntoWords(_generatedPassage!);
+
+        final serverQuestions = (testMap['questions'] as List<dynamic>?) ?? [];
+        _generatedQuestions = serverQuestions
+            .map((q) {
+              final mq = Map<String, dynamic>.from(q as Map);
+              mq['question_id'] = mq['question_id']?.toString() ?? '';
+              mq['question'] =
+                  mq['question_text']?.toString() ??
+                  mq['question']?.toString() ??
+                  '';
+              if (mq.containsKey('options') &&
+                  mq['options'] != null &&
+                  mq['options'] is! List) {
+                try {
+                  mq['options'] = List<dynamic>.from(mq['options']);
+                } catch (_) {
+                  mq['options'] = <dynamic>[];
+                }
+              }
+              if (mq.containsKey('targetCount') && mq['targetCount'] is num)
+                mq['targetCount'] = (mq['targetCount'] as num).toInt();
+              return mq;
+            })
+            .toList(growable: false);
+
+        _selectedWordIndices.clear();
+        _answers.clear();
+        setState(() {
+          _testState = TestState.test;
+        });
+        return;
+      } catch (_) {
+        _serverTest = null;
+      }
       final difficultyLabel = _selectedDifficulty.name.toUpperCase();
       final lengthLabel = switch (_selectedLength) {
         PassageLength.short => 'short (40-80 words)',
@@ -296,6 +356,97 @@ Do NOT reuse character names from examples (e.g. Sarah, Dr. Chen, Maria). Vary t
     setState(() {
       _testState = TestState.loading;
     });
+
+    // If server-backed test exists, attempt server submission first
+    if (_serverTest != null) {
+      try {
+        final answersMap = <String, dynamic>{};
+        for (var i = 0; i < _generatedQuestions!.length; i++) {
+          final q = _generatedQuestions![i];
+          final qid = q['question_id']?.toString() ?? '';
+          final type = q['type']?.toString() ?? '';
+          if (qid.isEmpty) continue;
+
+          if (type == 'keyword_selection') {
+            final selectedWords = _selectedWordIndices
+                .map((idx) => _passageWords![idx])
+                .toList();
+            answersMap[qid] = {
+              'selected_keywords': selectedWords,
+              'targetCount': q['targetCount'] ?? null,
+            };
+          } else if (type == 'categorize') {
+            final ans = _answers.containsKey(i) ? _answers[i] : <int>{};
+            if (ans is Set) {
+              answersMap[qid] = {
+                'selected_indices': (ans as Set<int>).toList(),
+              };
+            }
+          } else if (type == 'multiple_choice' || type == 'open_ended') {
+            answersMap[qid] = {
+              'user_answer': _answers.containsKey(i) ? _answers[i] : null,
+            };
+          }
+        }
+
+        final testId = _serverTest!['test_id'] as String;
+        final submission = await SubmitAnswersAndCheckResults().submitAnswers(
+          testId: testId,
+          // Convert values to strings where appropriate; backend expects Map<String,String>
+          answers: answersMap.map(
+            (k, v) => MapEntry(k.toString(), v is String ? v : jsonEncode(v)),
+          ),
+        );
+
+        final resultId = submission['result_id'] as String;
+        final fullResult = await SubmitAnswersAndCheckResults().fetchResult(
+          resultId: resultId,
+        );
+
+        final detailed =
+            (fullResult['detailed_answers'] as List<dynamic>?) ?? [];
+        for (final d in detailed) {
+          final m = Map<String, dynamic>.from(d as Map);
+          final qNum = (m['question_num'] as num?)?.toInt() ?? -1;
+          final idx = qNum > 0 ? qNum - 1 : -1;
+          if (idx >= 0 && idx < _generatedQuestions!.length) {
+            _generatedQuestions![idx]['_is_correct'] = m['is_correct'];
+            _generatedQuestions![idx]['_expected'] = (m['correct_answer'] ?? '')
+                .toString();
+            _generatedQuestions![idx]['_feedback'] = (m['feedback'] ?? '')
+                .toString();
+            _generatedQuestions![idx]['_score'] =
+                (m['points_earned'] as num?)?.toInt() ?? 0;
+          }
+        }
+
+        _scoreEarned = fullResult['score'] is num
+            ? (fullResult['score'] as num).toInt()
+            : 0;
+        _pointsPossible = fullResult['total_points'] is num
+            ? (fullResult['total_points'] as num).toInt()
+            : (_generatedQuestions?.length ?? 0);
+        _overallFeedback = fullResult['feedback_text'] ?? '';
+
+        ResultsNotifier.instance.notifyNewResult(resultId);
+
+        if (!mounted) return;
+        setState(() {
+          _testState = TestState.results;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Results saved to server'),
+            backgroundColor: Color(0xFFFFA500),
+          ),
+        );
+
+        return;
+      } catch (_) {
+        // fall back to local grading
+      }
+    }
 
     // Build payload
     final items = <Map<String, dynamic>>[];

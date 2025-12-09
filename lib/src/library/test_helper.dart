@@ -431,16 +431,19 @@ class TestHelper {
   Questions and user answers: ${jsonEncode(data)}
 
   Rules:
-  - For each question, decide if the user_answer is correct.
-  - Assign points earned (0 or full points).
-  - Return JSON ONLY in this format:
+  - For each question, decide if the user_answer addresses the prompt.
+  - Assign points earned as an integer between 0 and the question's full points (e.g., 0-5).
+    Be generous: 0 = no credit or totally off-topic, 1-2 = minimal/limited, 3 = adequate,
+    4 = good, 5 = excellent (use the question's `points` value as the full score).
+  - Set `is_correct` to true for any response that attempts to answer the question (be lenient).
+  - Return JSON ONLY in this format (no markdown or extra text):
 
   [
     {
       "question_id": "question_id",
       "user_answer": "user_answer",
-      "is_correct": true/false,
-      "points_earned": 0
+      "is_correct": true,
+      "points_earned": 3
     }
   ]
 """;

@@ -2,6 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:prep_pilot_ai/src/services/ai_agent.dart';
 import 'dart:convert';
+import '../../skills/actions/start_test.dart';
+import '../../skills/actions/submit_answers_and_check_results.dart';
+import '../../../library/results_notifier.dart';
+import '../../skills/models/test_properties.dart' as skill_props;
 
 enum TestState { initial, loading, test, results }
 
@@ -36,6 +40,11 @@ class _ReadingInferenceScreenState extends State<ReadingInferenceScreen> {
   String? _generatedPassage;
   List<Map<String, dynamic>>? _generatedQuestions;
   final Map<int, dynamic> _answers = {};
+  // Server-backed test (if created)
+  Map<String, dynamic>? _serverTest;
+  int _scoreEarned = 0;
+  int _pointsPossible = 0;
+  String _overallFeedback = '';
 
   @override
   void initState() {
@@ -74,6 +83,52 @@ class _ReadingInferenceScreenState extends State<ReadingInferenceScreen> {
     });
 
     try {
+      // Try to create a server-backed test first
+      try {
+        final skillDifficulty = skill_props.Difficulty.values.firstWhere(
+          (d) => d.name == _selectedDifficulty.name,
+          orElse: () => skill_props.Difficulty.b1,
+        );
+
+        final testMap = await StartTest().execute(
+          difficulty: skillDifficulty,
+          testType: skill_props.TestType.reading,
+          moduleType: skill_props.ReadingModuleType.inference,
+        );
+
+        _serverTest = testMap;
+        _generatedPassage =
+            testMap['text'] ?? testMap['test_description'] ?? '';
+        final serverQuestions = (testMap['questions'] as List<dynamic>?) ?? [];
+        _generatedQuestions = serverQuestions
+            .map((q) {
+              final mq = Map<String, dynamic>.from(q as Map);
+              final typeRaw = mq['type'];
+              if (typeRaw is String) {
+                mq['type'] = _parseInferenceType(typeRaw);
+              } else if (typeRaw is InferenceType) {
+                // already correct
+              } else {
+                mq['type'] = InferenceType.impliedMeaning;
+              }
+              mq['question_id'] = mq['question_id']?.toString() ?? '';
+              mq['question'] =
+                  mq['question_text']?.toString() ??
+                  mq['question']?.toString() ??
+                  '';
+              return mq;
+            })
+            .toList(growable: false);
+
+        _answers.clear();
+        setState(() {
+          _testState = TestState.test;
+        });
+        return;
+      } catch (_) {
+        _serverTest = null;
+      }
+
       final difficultyLabel = _selectedDifficulty.name.toUpperCase();
       final lengthLabel = switch (_selectedLength) {
         PassageLength.short => 'short (100-150 words)',
@@ -104,7 +159,6 @@ Constraints:
         temperature: 0.9,
         maxTokens: 1400,
       );
-
       _generatedPassage = (parsed['passage'] as String).trim();
       final qRaw = (parsed['questions'] as List).cast<dynamic>();
 
@@ -133,7 +187,9 @@ Constraints:
 
         // Normalize correctAnswer similar to skimming (if provided)
         final ca = m['correctAnswer'];
-        final it = m['type'] as InferenceType;
+        final it = m['type'] is InferenceType
+            ? m['type'] as InferenceType
+            : _parseInferenceType((m['type'] ?? 'impliedMeaning').toString());
         if (it != InferenceType.impliedMeaning &&
             it != InferenceType.assumption &&
             ca != null) {
@@ -158,6 +214,52 @@ Constraints:
         _testState = TestState.test;
       });
     } catch (e) {
+      // If AI generation fails, try to create a server test as a fallback
+      try {
+        final skillDifficulty = skill_props.Difficulty.values.firstWhere(
+          (d) => d.name == _selectedDifficulty.name,
+          orElse: () => skill_props.Difficulty.b1,
+        );
+
+        final testMap = await StartTest().execute(
+          difficulty: skillDifficulty,
+          testType: skill_props.TestType.reading,
+          moduleType: skill_props.ReadingModuleType.inference,
+        );
+
+        _serverTest = testMap;
+        _generatedPassage =
+            testMap['text'] ?? testMap['test_description'] ?? '';
+        final serverQuestions = (testMap['questions'] as List<dynamic>?) ?? [];
+        _generatedQuestions = serverQuestions
+            .map((q) {
+              final mq = Map<String, dynamic>.from(q as Map);
+              // Normalize type if provided as string
+              final typeRaw = mq['type'];
+              if (typeRaw is String) {
+                mq['type'] = _parseInferenceType(typeRaw);
+              } else if (typeRaw is InferenceType) {
+                // already correct
+              } else {
+                mq['type'] = InferenceType.impliedMeaning;
+              }
+              mq['question_id'] = mq['question_id']?.toString() ?? '';
+              mq['question'] =
+                  mq['question_text']?.toString() ??
+                  mq['question']?.toString() ??
+                  '';
+              return mq;
+            })
+            .toList(growable: false);
+
+        _answers.clear();
+        setState(() {
+          _testState = TestState.test;
+        });
+        return;
+      } catch (_) {
+        // continue to fallback mock below
+      }
       // fallback to mock
       _generateMockTest();
       if (!mounted) return;
@@ -335,14 +437,84 @@ Dr. Chen continued her work, but she stopped sharing preliminary results at lab 
       _testState = TestState.loading;
     });
 
+    // If this test was created on the server, attempt to submit answers there first
+    if (_serverTest != null) {
+      try {
+        final answersMap = <String, String>{};
+        for (var i = 0; i < _generatedQuestions!.length; i++) {
+          final q = _generatedQuestions![i];
+          final qid = q['question_id']?.toString() ?? '';
+          final ans = _answers.containsKey(i)
+              ? (_answers[i]?.toString() ?? '')
+              : '';
+          if (qid.isNotEmpty) answersMap[qid] = ans;
+        }
+
+        final testId = _serverTest!['test_id'] as String;
+        final submission = await SubmitAnswersAndCheckResults().submitAnswers(
+          testId: testId,
+          answers: answersMap,
+        );
+
+        final resultId = submission['result_id'] as String;
+        final fullResult = await SubmitAnswersAndCheckResults().fetchResult(
+          resultId: resultId,
+        );
+
+        final detailed =
+            (fullResult['detailed_answers'] as List<dynamic>?) ?? [];
+        for (final d in detailed) {
+          final m = Map<String, dynamic>.from(d as Map);
+          final qNum = (m['question_num'] as num?)?.toInt() ?? -1;
+          final idx = qNum > 0 ? qNum - 1 : -1;
+          if (idx >= 0 && idx < _generatedQuestions!.length) {
+            _generatedQuestions![idx]['_is_correct'] = m['is_correct'] == true;
+            _generatedQuestions![idx]['_expected'] = (m['correct_answer'] ?? '')
+                .toString();
+            _generatedQuestions![idx]['_feedback'] = (m['feedback'] ?? '')
+                .toString();
+            _generatedQuestions![idx]['_score'] =
+                (m['points_earned'] as num?)?.toInt() ?? 0;
+          }
+        }
+
+        _scoreEarned = fullResult['score'] is num
+            ? (fullResult['score'] as num).toInt()
+            : 0;
+        _pointsPossible = fullResult['total_points'] is num
+            ? (fullResult['total_points'] as num).toInt()
+            : (_generatedQuestions?.length ?? 0);
+        _overallFeedback = fullResult['feedback_text'] ?? '';
+
+        ResultsNotifier.instance.notifyNewResult(resultId);
+
+        if (!mounted) return;
+        setState(() {
+          _testState = TestState.results;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Results saved to server'),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+
+        return;
+      } catch (_) {
+        // fall through to local grading
+      }
+    }
+
     final items = <Map<String, dynamic>>[];
     for (var i = 0; i < _generatedQuestions!.length; i++) {
       final q = _generatedQuestions![i];
+      final qType = q['type'] is InferenceType
+          ? q['type'] as InferenceType
+          : _parseInferenceType((q['type'] ?? 'impliedMeaning').toString());
       items.add({
         'index': i,
-        'type': q['type'] is InferenceType
-            ? _inferenceTypeToString(q['type'] as InferenceType)
-            : q['type'].toString(),
+        'type': _inferenceTypeToString(qType),
         'question': q['question'],
         'options': q['options'] ?? [],
         'user_answer': _answers.containsKey(i) ? _answers[i] : null,
@@ -1190,7 +1362,9 @@ class _QuestionWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final inferenceType = question['type'] as InferenceType;
+    final inferenceType = question['type'] is InferenceType
+        ? question['type'] as InferenceType
+        : InferenceType.impliedMeaning;
     final hasOptions = question.containsKey('options');
     final hasHint = question.containsKey('hint');
 
@@ -1221,7 +1395,8 @@ class _QuestionWidget extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    question['question'],
+                    question['question']?.toString() ??
+                        'Question not available',
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -1274,7 +1449,7 @@ class _QuestionWidget extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    question['hint'],
+                    question['hint']?.toString() ?? '',
                     style: const TextStyle(
                       fontSize: 12,
                       color: Color(0xFF5C6470),
@@ -1399,7 +1574,7 @@ class _MultipleChoiceOptions extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        options[index],
+                        options[index]?.toString() ?? '',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: isSelected
@@ -1441,18 +1616,21 @@ class _OpenEndedAnswer extends StatelessWidget {
               width: 1.5,
             ),
           ),
-          child: TextField(
-            onChanged: onChanged,
-            controller: TextEditingController(text: value),
-            maxLines: 3,
-            style: const TextStyle(fontSize: 15, color: Color(0xFF1E293B)),
-            decoration: InputDecoration(
-              hintText: 'Explain your inference...',
-              hintStyle: TextStyle(
-                color: const Color(0xFF5C6470).withOpacity(0.6),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: TextFormField(
+              initialValue: value,
+              onChanged: onChanged,
+              maxLines: 3,
+              style: const TextStyle(fontSize: 15, color: Color(0xFF1E293B)),
+              decoration: InputDecoration(
+                hintText: 'Explain your inference...',
+                hintStyle: TextStyle(
+                  color: const Color(0xFF5C6470).withOpacity(0.6),
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.all(14),
               ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.all(14),
             ),
           ),
         ),

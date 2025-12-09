@@ -7,6 +7,8 @@ import '../widgets/skill_settings_dialog.dart';
 import '../widgets/skill_loading_screen.dart';
 import '../widgets/skill_glass_card.dart';
 import '../actions/start_test.dart';
+import '../actions/submit_answers_and_check_results.dart';
+import '../../../library/results_notifier.dart';
 import 'local_speaking_evaluator.dart';
 
 class SpeakingPart1Screen extends StatefulWidget {
@@ -212,16 +214,47 @@ class _SpeakingPart1ScreenState extends State<SpeakingPart1Screen> {
     });
 
     try {
-      // Use local evaluation - no database
-      final results = await LocalSpeakingEvaluator.evaluateLocal(
-        testData: _testData!,
-        answers: _answers,
-      );
+      final testId = _testData!['test_id'];
 
-      setState(() {
-        _resultData = results;
-        _testState = TestState.results;
-      });
+      try {
+        // Try to save answers and generate feedback on the server
+        final submission = await SubmitAnswersAndCheckResults().submitAnswers(
+          testId: testId,
+          answers: _answers,
+        );
+
+        final resultId = submission['result_id'] as String;
+        final fullResult = await SubmitAnswersAndCheckResults().fetchResult(
+          resultId: resultId,
+        );
+
+        // Notify the app that a new server-side result was created
+        ResultsNotifier.instance.notifyNewResult(resultId);
+
+        setState(() {
+          _resultData = fullResult;
+          _testState = TestState.results;
+        });
+      } catch (e) {
+        // If server-side save failed (e.g., not logged in), fallback to local evaluation
+        final results = await LocalSpeakingEvaluator.evaluateLocal(
+          testData: _testData!,
+          answers: _answers,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Result not saved: $e — showing local feedback'),
+            ),
+          );
+        }
+
+        setState(() {
+          _resultData = results;
+          _testState = TestState.results;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
