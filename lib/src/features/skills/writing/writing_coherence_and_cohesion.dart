@@ -7,6 +7,7 @@ import '../widgets/skill_loading_screen.dart';
 import '../widgets/skill_glass_card.dart';
 import '../actions/start_test.dart';
 import '../actions/submit_answers_and_check_results.dart';
+import '../actions/exit_confirmation_dialog.dart';
 
 class WritingCoherenceAndCohesionScreen extends StatefulWidget {
   const WritingCoherenceAndCohesionScreen({super.key});
@@ -388,9 +389,12 @@ class _WritingCoherenceAndCohesionScreenState
       child: Row(
         children: [
           _SmallBackButton(
-            onTap: () {
-              _timer?.cancel();
-              Navigator.of(context).pop();
+            onTap: () async {
+              final shouldExit = await showExitConfirmationDialog(context);
+              if (shouldExit) {
+                _timer?.cancel();
+                if (mounted) Navigator.of(context).pop();
+              }
             },
           ),
           const SizedBox(width: 12),

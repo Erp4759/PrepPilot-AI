@@ -10,6 +10,7 @@ import '../actions/start_test.dart';
 import 'local_speaking_evaluator.dart';
 import '../../../library/results_notifier.dart';
 import '../actions/submit_answers_and_check_results.dart';
+import '../actions/exit_confirmation_dialog.dart';
 
 class SpeakingPart2Screen extends StatefulWidget {
   const SpeakingPart2Screen({super.key});
@@ -709,7 +710,16 @@ class _SpeakingPart2ScreenState extends State<SpeakingPart2Screen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Row(
         children: [
-          _SmallBackButton(onTap: () => Navigator.of(context).pop()),
+          _SmallBackButton(
+            onTap: () async {
+              final shouldExit = await showExitConfirmationDialog(context);
+              if (shouldExit) {
+                _timer?.cancel();
+                _speechToText.stop();
+                if (mounted) Navigator.of(context).pop();
+              }
+            },
+          ),
           const SizedBox(width: 12),
           const Text(
             'Speaking - Part 2',

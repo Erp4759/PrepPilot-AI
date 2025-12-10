@@ -5,6 +5,7 @@ import '../../skills/actions/start_test.dart';
 import '../../skills/actions/submit_answers_and_check_results.dart';
 import '../../../library/results_notifier.dart';
 import '../../skills/models/test_properties.dart' as skill_props;
+import '../../skills/actions/exit_confirmation_dialog.dart';
 
 enum TestState { initial, loading, test, results }
 
@@ -804,7 +805,14 @@ The concept of neuroplasticity has transformed our understanding of the brain. P
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Row(
         children: [
-          _SmallBackButton(onTap: () => Navigator.of(context).pop()),
+          _SmallBackButton(
+            onTap: () async {
+              final shouldExit = await showExitConfirmationDialog(context);
+              if (shouldExit) {
+                if (mounted) Navigator.of(context).pop();
+              }
+            },
+          ),
           const SizedBox(width: 12),
           const Text(
             'Scanning Test',

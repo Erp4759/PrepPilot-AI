@@ -10,6 +10,7 @@ import '../actions/start_test.dart';
 import '../actions/submit_answers_and_check_results.dart';
 import '../../../library/results_notifier.dart';
 import 'local_speaking_evaluator.dart';
+import '../actions/exit_confirmation_dialog.dart';
 
 class SpeakingPart3Screen extends StatefulWidget {
   const SpeakingPart3Screen({super.key});
@@ -779,32 +780,13 @@ class _SpeakingPart3ScreenState extends State<SpeakingPart3Screen> {
       child: Row(
         children: [
           IconButton(
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Exit Test?'),
-                  content: const Text(
-                    'Are you sure you want to exit? Your progress will be lost.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        Navigator.of(context).pop();
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFFEF4444),
-                      ),
-                      child: const Text('Exit'),
-                    ),
-                  ],
-                ),
-              );
+            onPressed: () async {
+              final shouldExit = await showExitConfirmationDialog(context);
+              if (shouldExit) {
+                _timer?.cancel();
+                _speechToText.stop();
+                if (mounted) Navigator.of(context).pop();
+              }
             },
             icon: const Icon(Icons.arrow_back),
           ),

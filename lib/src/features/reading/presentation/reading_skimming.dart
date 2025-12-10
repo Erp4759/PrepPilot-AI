@@ -7,6 +7,7 @@ import '../../skills/actions/start_test.dart';
 import '../../skills/actions/submit_answers_and_check_results.dart';
 import '../../skills/models/test_properties.dart' as skill_props;
 import '../../../library/results_notifier.dart';
+import '../../skills/actions/exit_confirmation_dialog.dart';
 
 enum TestState { initial, loading, test, results }
 
@@ -1330,9 +1331,12 @@ Passage:\n${_generatedPassage}\n\nData:${jsonEncode(items)}
       child: Row(
         children: [
           _SmallBackButton(
-            onTap: () {
-              _timer?.cancel();
-              Navigator.of(context).pop();
+            onTap: () async {
+              final shouldExit = await showExitConfirmationDialog(context);
+              if (shouldExit) {
+                _timer?.cancel();
+                if (mounted) Navigator.of(context).pop();
+              }
             },
           ),
           const SizedBox(width: 12),
