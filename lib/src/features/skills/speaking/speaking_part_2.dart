@@ -44,6 +44,7 @@ class _SpeakingPart2ScreenState extends State<SpeakingPart2Screen> {
   // Speech Recognition
   late stt.SpeechToText _speechToText;
   bool _isListening = false;
+  bool _shouldKeepListening = false;
 
   @override
   void initState() {
@@ -66,11 +67,19 @@ class _SpeakingPart2ScreenState extends State<SpeakingPart2Screen> {
           );
         }
       },
-      onStatus: (status) {
+      onStatus: (status) async {
         if (status == 'done' && mounted) {
-          setState(() {
-            _isListening = false;
-          });
+          if (_shouldKeepListening) {
+            await Future.delayed(const Duration(milliseconds: 300));
+            if (!mounted) return;
+            try {
+              await _startListening();
+            } catch (_) {}
+          } else {
+            setState(() {
+              _isListening = false;
+            });
+          }
         }
       },
     );
@@ -206,6 +215,7 @@ class _SpeakingPart2ScreenState extends State<SpeakingPart2Screen> {
     setState(() {
       _isListening = true;
       _userResponse = '';
+      _shouldKeepListening = true;
     });
 
     await _speechToText.listen(
@@ -215,13 +225,14 @@ class _SpeakingPart2ScreenState extends State<SpeakingPart2Screen> {
         });
       },
       listenFor: Duration(seconds: _speakingSeconds),
-      pauseFor: const Duration(seconds: 5),
+      pauseFor: const Duration(seconds: 20),
       partialResults: true,
       localeId: 'en_US',
     );
   }
 
   Future<void> _stopListening() async {
+    _shouldKeepListening = false;
     await _speechToText.stop();
     setState(() {
       _isListening = false;
@@ -231,6 +242,7 @@ class _SpeakingPart2ScreenState extends State<SpeakingPart2Screen> {
   Future<void> _submitTest() async {
     _timer?.cancel();
     if (_isListening) {
+      _shouldKeepListening = false;
       await _speechToText.stop();
     }
 

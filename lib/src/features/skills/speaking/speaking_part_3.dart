@@ -39,6 +39,7 @@ class _SpeakingPart3ScreenState extends State<SpeakingPart3Screen> {
   // Speech Recognition
   late stt.SpeechToText _speechToText;
   bool _isListening = false;
+  bool _shouldKeepListening = false;
   String _currentQuestionId = '';
   String _currentTranscript = '';
 
@@ -63,11 +64,19 @@ class _SpeakingPart3ScreenState extends State<SpeakingPart3Screen> {
           );
         }
       },
-      onStatus: (status) {
+      onStatus: (status) async {
         if (status == 'done' && mounted) {
-          setState(() {
-            _isListening = false;
-          });
+          if (_shouldKeepListening && _currentQuestionId.isNotEmpty) {
+            await Future.delayed(const Duration(milliseconds: 300));
+            if (!mounted) return;
+            try {
+              await _startListening(_currentQuestionId);
+            } catch (_) {}
+          } else {
+            setState(() {
+              _isListening = false;
+            });
+          }
         }
       },
     );
@@ -193,6 +202,7 @@ class _SpeakingPart3ScreenState extends State<SpeakingPart3Screen> {
       _isListening = true;
       _currentQuestionId = questionId;
       _currentTranscript = _answers[questionId] ?? '';
+      _shouldKeepListening = true;
     });
 
     try {
@@ -204,7 +214,7 @@ class _SpeakingPart3ScreenState extends State<SpeakingPart3Screen> {
           });
         },
         listenFor: const Duration(seconds: 90), // 90 seconds per question
-        pauseFor: const Duration(seconds: 5),
+        pauseFor: const Duration(seconds: 20),
         partialResults: true,
         localeId: 'en_US',
       );
@@ -230,6 +240,7 @@ class _SpeakingPart3ScreenState extends State<SpeakingPart3Screen> {
       setState(() {
         _isListening = false;
         _currentQuestionId = '';
+        _shouldKeepListening = false;
       });
     }
   }
@@ -237,6 +248,7 @@ class _SpeakingPart3ScreenState extends State<SpeakingPart3Screen> {
   Future<void> _submitTest() async {
     _timer?.cancel();
     if (_isListening) {
+      _shouldKeepListening = false;
       await _speechToText.stop();
     }
 
