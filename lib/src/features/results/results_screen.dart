@@ -15,6 +15,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
   List<TestResult> _results = [];
   bool _isLoading = true;
   String _errorMessage = '';
+  String _sortBy = 'Recent'; // 'Recent' or 'Latest'
+  String _filterBy =
+      'All'; // 'All', 'Writing', 'Speaking', 'Reading', 'Listening'
 
   @override
   void initState() {
@@ -52,6 +55,28 @@ class _ResultsScreenState extends State<ResultsScreen> {
     }
   }
 
+  List<TestResult> get _filteredAndSortedResults {
+    var results = List<TestResult>.from(_results);
+
+    // Apply filter: compare against testType (e.g. 'speaking') not moduleType
+    if (_filterBy != 'All') {
+      final normalizedFilter = _filterBy.trim().toLowerCase();
+      results = results.where((result) {
+        final testType = result.testType.trim().toLowerCase();
+        return testType == normalizedFilter;
+      }).toList();
+    }
+
+    // Apply sort
+    if (_sortBy == 'Recent') {
+      results.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    } else {
+      results.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    }
+
+    return results;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -79,13 +104,42 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     ),
                   ],
                 ),
-                // const SizedBox(height: 16),
-                // _GlassButton(
-                //   label: 'See Past Mistakes',
-                //   onTap: () =>
-                //       Navigator.of(context).pushNamed('/past-mistakes'),
-                //   fullWidth: true,
-                // ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildDropdown(
+                        label: 'Sort by',
+                        value: _sortBy,
+                        items: ['Recent', 'Latest'],
+                        onChanged: (value) {
+                          setState(() {
+                            _sortBy = value!;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildDropdown(
+                        label: 'Filter',
+                        value: _filterBy,
+                        items: [
+                          'All',
+                          'Writing',
+                          'Speaking',
+                          'Reading',
+                          'Listening',
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _filterBy = value!;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 Expanded(
                   child: _GlassCard(
@@ -145,11 +199,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
                         : RefreshIndicator(
                             onRefresh: _loadResults,
                             child: ListView.separated(
-                              itemCount: _results.length,
+                              itemCount: _filteredAndSortedResults.length,
                               separatorBuilder: (_, __) =>
                                   const SizedBox(height: 12),
                               itemBuilder: (context, index) {
-                                final result = _results[index];
+                                final result = _filteredAndSortedResults[index];
                                 return _ResultItem(
                                   result: result,
                                   onTap: () => Navigator.of(context).pushNamed(
@@ -163,6 +217,44 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdown({
+    required String label,
+    required String value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.black.withValues(alpha: .06)),
+            color: Colors.white.withValues(alpha: .82),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              isExpanded: true,
+              icon: const Icon(Icons.arrow_drop_down),
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                color: Colors.black87,
+              ),
+              items: items.map((String item) {
+                return DropdownMenuItem<String>(value: item, child: Text(item));
+              }).toList(),
+              onChanged: onChanged,
             ),
           ),
         ),
