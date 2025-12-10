@@ -5,6 +5,9 @@ Mobile app for English exams preparation (IELTS & TOEFL). Leverages AI to genera
 ## Tech Stack
 Flutter (Material 3), Riverpod, get_it (DI), Freezed + JSON serialization, Dio (network), just_audio / record / speech_to_text / flutter_tts (audio & speech), shared_preferences (local storage), dotenv for API keys.
 
+## Release APK
+https://github.com/Erp4759/PrepPilot-AI/releases/
+
 ## Structure (early scaffold)
 ```
 lib/
