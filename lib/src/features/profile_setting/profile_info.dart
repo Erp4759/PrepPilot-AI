@@ -35,13 +35,15 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
         return;
       }
       final p = await fetchUserProfile(authUser.id);
-      // compute/refresh difficulty levels (kept) — ignore pain points
+      // compute/refresh difficulty levels (kept) — ignore errors
       try {
         await computeLearningLevelAndPainPoints(authUser.id);
       } catch (_) {}
 
+      // Re-fetch the profile after compute so UI reflects updated difficulties.
+      final refreshed = await fetchUserProfile(authUser.id);
       setState(() {
-        _profile = p;
+        _profile = refreshed ?? p;
         _loading = false;
       });
     } catch (_) {
