@@ -1,11 +1,55 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../services/supabase.dart';
 
+class NoInternetException implements Exception {
+  final String message;
+  NoInternetException([
+    this.message =
+        'No internet connection. Please check your WiFi or mobile data.',
+  ]);
+
+  @override
+  String toString() => message;
+}
+
 class TestHelper {
+  // -------------------------------------------------------------
+  // CONNECTIVITY CHECK
+  // -------------------------------------------------------------
+  static Future<void> checkConnectivity() async {
+    final result = await Connectivity().checkConnectivity();
+
+    if (result.contains(ConnectivityResult.none)) {
+      throw NoInternetException();
+    }
+
+    try {
+      final response = await InternetAddress.lookup(
+        'google.com',
+      ).timeout(const Duration(seconds: 5));
+      if (response.isEmpty || response[0].rawAddress.isEmpty) {
+        throw NoInternetException(
+          'Connected to network but no internet access.',
+        );
+      }
+    } on SocketException {
+      throw NoInternetException('Connected to network but no internet access.');
+    } on TimeoutException {
+      throw NoInternetException(
+        'Connection timed out. Please check your internet.',
+      );
+    }
+  }
+
   /// Mark all user answers for a given test_id
   static Future<void> markUserAnswers({required String testId}) async {
+    await checkConnectivity();
+
     // 1. Pull test + question data
     final test = await supabase
         .from('tests')

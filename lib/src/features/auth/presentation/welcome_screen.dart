@@ -236,7 +236,7 @@ class _UserStatsSection extends StatelessWidget {
           return _GlassCapsule(
             padding: const EdgeInsets.all(20),
             child: Text(
-              'Unable to load stats',
+              'Please check your internet connection and try again.',
               style: TextStyle(color: Colors.grey[600]),
             ),
           );

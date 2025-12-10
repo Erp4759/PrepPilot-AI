@@ -3,13 +3,58 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/supabase.dart';
 
+import 'dart:io';
+import 'package:connectivity_plus/connectivity_plus.dart';
+
+import 'dart:io';
+import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
+
+class NoInternetException implements Exception {
+  final String message;
+  NoInternetException([
+    this.message =
+        'No internet connection. Please check your WiFi or mobile data.',
+  ]);
+
+  @override
+  String toString() => message;
+}
+
 class TestHelper {
+  static Future<void> checkConnectivity() async {
+    final result = await Connectivity().checkConnectivity();
+
+    if (result.contains(ConnectivityResult.none)) {
+      throw NoInternetException();
+    }
+
+    try {
+      final response = await InternetAddress.lookup(
+        'google.com',
+      ).timeout(const Duration(seconds: 5));
+      if (response.isEmpty || response[0].rawAddress.isEmpty) {
+        throw NoInternetException(
+          'Connected to network but no internet access.',
+        );
+      }
+    } on SocketException {
+      throw NoInternetException('Connected to network but no internet access.');
+    } on TimeoutException {
+      throw NoInternetException(
+        'Connection timed out. Please check your internet.',
+      );
+    }
+  }
+
   /// Generate an IELTS test → save to Supabase → return test_id
   static Future<String> createAndStoreTest({
     required String difficulty,
     required String testType,
     required String moduleType,
   }) async {
+    await checkConnectivity();
+
     // 1. Fetch prompt from Supabase
     final promptData = await _getPromptFromSupabase(
       testType: testType,
@@ -241,6 +286,8 @@ class TestHelper {
   static Future<List<String>> saveUserAnswers({
     required Map<String, String> answers,
   }) async {
+    await checkConnectivity();
+
     if (answers.isEmpty) {
       throw Exception('Answers map cannot be empty');
     }
@@ -265,6 +312,8 @@ class TestHelper {
   static Future<Map<String, dynamic>> fetchTestById({
     required String testId,
   }) async {
+    await checkConnectivity();
+
     // Fetch test with its questions in a single query
     final response = await supabase
         .from('tests')
@@ -300,6 +349,8 @@ class TestHelper {
   static Future<Map<String, dynamic>> fetchTestMetadata({
     required String testId,
   }) async {
+    await checkConnectivity();
+
     final response = await supabase
         .from('tests')
         .select('''
@@ -326,6 +377,8 @@ class TestHelper {
   static Future<List<Map<String, dynamic>>> fetchTestQuestions({
     required String testId,
   }) async {
+    await checkConnectivity();
+
     final response = await supabase
         .from('questions')
         .select('''
@@ -344,6 +397,8 @@ class TestHelper {
 
   /// Mark all user answers for a given test_id
   static Future<void> markUserAnswers({required String testId}) async {
+    await checkConnectivity();
+
     // 1. Pull test + question data
     final test = await supabase
         .from('tests')
@@ -492,6 +547,8 @@ class TestHelper {
     required String testId,
     required String resultId,
   }) async {
+    await checkConnectivity();
+
     // 1. Pull test data
     final test = await supabase
         .from('tests')
@@ -772,6 +829,8 @@ class TestHelper {
   /// Fetch all test results for the current user
   /// Returns a list of results with test information
   static Future<List<Map<String, dynamic>>> fetchAllResults() async {
+    await checkConnectivity();
+
     final user = supabase.auth.currentUser;
 
     if (user == null) {
@@ -809,6 +868,8 @@ class TestHelper {
   static Future<Map<String, dynamic>> fetchResultById({
     required String resultId,
   }) async {
+    await checkConnectivity();
+
     final response = await supabase
         .from('results')
         .select('''
@@ -841,6 +902,8 @@ class TestHelper {
   static Future<Map<String, dynamic>> fetchFeedbackByResultId({
     required String resultId,
   }) async {
+    await checkConnectivity();
+
     final response = await supabase
         .from('feedback')
         .select('''
@@ -867,6 +930,8 @@ class TestHelper {
   static Future<Map<String, dynamic>> fetchCompleteResult({
     required String resultId,
   }) async {
+    await checkConnectivity();
+
     // 1. Fetch result with test info
     final result = await fetchResultById(resultId: resultId);
 
@@ -947,6 +1012,8 @@ class TestHelper {
   static Future<List<Map<String, dynamic>>> fetchResultsByTestId({
     required String testId,
   }) async {
+    await checkConnectivity();
+
     final user = supabase.auth.currentUser;
 
     if (user == null) {
@@ -972,6 +1039,8 @@ class TestHelper {
 
   /// Get personalized statistics for the current user
   static Future<Map<String, dynamic>> fetchUserStats() async {
+    await checkConnectivity();
+
     final user = supabase.auth.currentUser;
 
     if (user == null) {
@@ -1100,6 +1169,8 @@ class TestHelper {
     String? testType,
     String? moduleType,
   }) async {
+    await checkConnectivity();
+
     final user = supabase.auth.currentUser;
 
     if (user == null) {
@@ -1205,6 +1276,8 @@ class TestHelper {
 
   /// Get breakdown of performance by module type
   static Future<Map<String, dynamic>> fetchModulePerformance() async {
+    await checkConnectivity();
+
     final user = supabase.auth.currentUser;
 
     if (user == null) {
