@@ -39,6 +39,7 @@ class _SpeakingPart1ScreenState extends State<SpeakingPart1Screen> {
   // Speech Recognition
   late stt.SpeechToText _speechToText;
   bool _isListening = false;
+  bool _shouldKeepListening = false;
   String _currentQuestionId = '';
   String _currentTranscript = '';
 
@@ -63,11 +64,21 @@ class _SpeakingPart1ScreenState extends State<SpeakingPart1Screen> {
           );
         }
       },
-      onStatus: (status) {
+      onStatus: (status) async {
+        // Auto-restart if recognition ends but we expect to keep listening
         if (status == 'done' && mounted) {
-          setState(() {
-            _isListening = false;
-          });
+          if (_shouldKeepListening && _currentQuestionId.isNotEmpty) {
+            // give plugin a brief moment then restart
+            await Future.delayed(const Duration(milliseconds: 300));
+            if (!mounted) return;
+            try {
+              await _startListening(_currentQuestionId);
+            } catch (_) {}
+          } else {
+            setState(() {
+              _isListening = false;
+            });
+          }
         }
       },
     );
@@ -174,7 +185,8 @@ class _SpeakingPart1ScreenState extends State<SpeakingPart1Screen> {
     }
 
     if (_isListening && _currentQuestionId == questionId) {
-      // Stop listening
+      // Stop listening (user tapped to stop)
+      _shouldKeepListening = false;
       await _speechToText.stop();
       setState(() {
         _isListening = false;
@@ -186,6 +198,7 @@ class _SpeakingPart1ScreenState extends State<SpeakingPart1Screen> {
         _currentQuestionId = questionId;
         _currentTranscript = _answers[questionId] ?? '';
         _isListening = true;
+        _shouldKeepListening = true;
       });
 
       await _speechToText.listen(
@@ -196,7 +209,7 @@ class _SpeakingPart1ScreenState extends State<SpeakingPart1Screen> {
           });
         },
         listenFor: const Duration(seconds: 60),
-        pauseFor: const Duration(seconds: 5),
+        pauseFor: const Duration(seconds: 20),
         partialResults: true,
         localeId: 'en_US',
       );
@@ -206,6 +219,7 @@ class _SpeakingPart1ScreenState extends State<SpeakingPart1Screen> {
   Future<void> _submitTest() async {
     _timer?.cancel();
     if (_isListening) {
+      _shouldKeepListening = false;
       await _speechToText.stop();
     }
 
